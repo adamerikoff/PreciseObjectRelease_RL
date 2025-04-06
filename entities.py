@@ -1,55 +1,62 @@
 import pyray as pr
+import math
 
-class Object:
-    def __init__(self, position: pr.Vector3, size: pr.Vector3, color: pr.Color):
-        self.position = position
-        self.size = size
-        self.color = color
-
-    def update(self):
-        """Update logic (e.g., movement, collisions)."""
-        pass
-
-class Drone(Object):
-    def __init__(self, position: pr.Vector3, size: pr.Vector3):
-        super().__init__(position, size, pr.BLUE)
-        self.movement_vector = pr.Vector3(0.0, 0.0, 0.0)
-
-    def update(self, delta_time: float):
-        # Correct way to update position with movement vector
-        new_x = self.position.x + self.movement_vector.x * delta_time
-        new_y = self.position.y + self.movement_vector.y * delta_time
-        new_z = self.position.z + self.movement_vector.z * delta_time
-        self.position = pr.Vector3(new_x, new_y, new_z)
-
-class Grenade(Object):
-    def __init__(self, position: pr.Vector3, size: pr.Vector3):
-        super().__init__(position, size, pr.RED)
-        self.is_released = False
-        self.drag_coefficient = 0.47
-        self.mass = 0.4
-
-    def check_collision(self):
-        if self.position.y <= 0:
-            return True
-        return False
-
-    def update(self, delta_time: float, gravity: float, wind: pr.Vector3, drone: Drone):
-        if self.is_released:
-            self.position = self.position + delta_time * (gravity + wind)
+class Drone:
+    def __init__(self, position: pr.Vector3):
+        self.pos = position
+        self.speed = 5.0
+        self.size = pr.Vector3(5.0, 2.0, 5.0)
+        
+    def update(self, action: str, dt: float):
+        """Update position based on action (positive x is forward)"""
+        if action == "forward":
+            self.pos.x += self.speed * dt
+        elif action == "backward":
+            self.pos.x -= self.speed * dt
+        elif action == "left":
+            self.pos.z -= self.speed * dt
+        elif action == "right":
+            self.pos.z += self.speed * dt
         else:
-            self.follow_drone(drone.position)
-    
-    def follow_drone(self, drone_position: pr.Vector3):
-        self.position.x = drone_position.x
-        self.position.y = drone_position.y - 1
-        self.position.z = drone_position.z
-    
+            print(f"Error: Invalid drone action: {action}")
+
+    def relative_position(self) -> pr.Vector3:
+        return pr.Vector3(0.0, 0.0, 0.0)
+
+    def relative_position(self, other: pr.Vector3) -> pr.Vector3:
+        return pr.Vector3(
+            other.x - self.pos.x,
+            other.y - self.pos.y,
+            other.z - self.pos.z,
+        )
+
+class Grenade:
+    def __init__(self, position: pr.Vector3):
+        self.pos = position
+        self.vel = pr.Vector3(0.0, 0.0, 0.0)
+        self.size = pr.Vector3(2.0, 2.0, 2.0)
+        self.is_released = False
+        
+    def update(self, dt: float, gravity: pr.Vector3, wind: pr.Vector3, drone_pos: pr.Vector3):
+        if not self.is_released:
+            self.pos = pr.Vector3(
+                drone_pos.x,
+                drone_pos.y - 2,
+                drone_pos.z
+            )
+        else:
+            self.vel.x = self.vel.x + (gravity.x + wind.x) * dt
+            self.vel.y = self.vel.y + (gravity.y + wind.y) * dt
+            self.vel.z = self.vel.z + (gravity.z + wind.z) * dt
+            self.pos.x = self.pos.x + self.vel.x * dt
+            self.pos.y = self.pos.y + self.vel.y * dt
+            self.pos.z = self.pos.z + self.vel.z * dt
+
     def release(self):
         if not self.is_released:
             self.is_released = True
 
-class Target(Object):
-    def __init__(self, position: pr.Vector3, size: pr.Vector3):
-        super().__init__(position, size, pr.GREEN)
-
+class Target:
+    def __init__(self, position: pr.Vector3):
+        self.pos = position
+        self.size = pr.Vector3(4.0, 4.0, 4.0)

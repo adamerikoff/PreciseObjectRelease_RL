@@ -1,23 +1,24 @@
+import random
 import pyray as pr
 import environment
 
+# main.py
 def main():
-    pr.init_window(800, 600, "3D Scene Example")
+    pr.init_window(1200, 800, "Drone Grenade Environment")
     pr.set_target_fps(60)
-    
-    scene = environment.Environment(pr.Vector3(500, 400, 500))
-    
-    while not pr.window_should_close():
-        delta_time = pr.get_frame_time()
-        
-        scene.update(delta_time)
-        
-        pr.begin_drawing()
-        pr.clear_background(pr.RAYWHITE)
-        scene.draw(delta_time)
-        pr.end_drawing()
 
-    
+    env = environment.Environment((400, 500, 400))
+    obs = env.reset()
+
+    while not pr.window_should_close():
+        dt = pr.get_frame_time()
+        action = random.randint(0, 3)
+        obs, reward, done, info = env.step(action, dt)
+        env.render()
+
+        if done:
+            obs = env.reset()
+
     pr.close_window()
 
 if __name__ == "__main__":

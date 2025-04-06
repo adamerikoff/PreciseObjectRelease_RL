@@ -1,139 +1,140 @@
 import random
+import math
+from typing import Tuple, Dict
+
+import numpy as np
 import pyray as pr
 import entities
 
 class Environment:
-    def __init__(self, scene_size: pr.Vector3):
-        self.scene_size = scene_size
-        half_size = pr.Vector3(scene_size.x/2, scene_size.y/2, scene_size.z/2)
-        
-        # Generate random positions within bounds
-        target_position = self._get_random_position(half_size, min_distance=150)
-        # Drone starts near target but in the air
-        drone_position = pr.Vector3(
-            target_position.x + random.uniform(-5, 5),
-            random.uniform(half_size.y, scene_size.y),  # Ensure drone is in upper half
-            target_position.z + random.uniform(-5, 5)
+    def __init__(self, scene_size: Tuple[float, float, float]):
+        self.scene_size = pr.Vector3(*scene_size)
+        self.half_size = pr.Vector3(
+            scene_size[0]/2, 
+            scene_size[1]/2, 
+            scene_size[2]/2
         )
-        # Grenade starts just below drone
-        grenade_position = pr.Vector3(drone_position.x, drone_position.y - 1, drone_position.z)
+        self.wind = None
+        self.gravity = None
+        self.drone = None
+        self.grenade = None
+        self.target = None
 
-        self.target = entities.Target(target_position, pr.Vector3(10, 10, 10))
-        self.drone = entities.Drone(drone_position, pr.Vector3(10, 4, 10))
-        self.grenade = entities.Grenade(grenade_position, pr.Vector3(5, 5, 5))
+    def reset(self):
+        self.gravity = pr.Vector3(0.0, -9.81, 0.0)
+        self.wind = pr.Vector3(
+            random.uniform(-10.0, 10.0),
+            0.0,
+            random.uniform(-10.0, 10.0)
+        )
+        self.target = entities.Target(
+            pr.Vector3(
+                random.uniform(-self.half_size.x + 100, self.half_size.x - 100),
+                0.0,
+                random.uniform(-self.half_size.z + 100, self.half_size.z - 100)
+            )
+        )
+        self.drone = entities.Drone(
+            pr.Vector3(
+                self.target.pos.x + random.uniform(-3.0, 3.0), 
+                random.randrange(self.half_size.y, self.scene_size.y), 
+                self.target.pos.z + random.uniform(-3.0, 3.0)
+            )
+        )
+        self.grenade = entities.Grenade(
+            pr.Vector3(
+                self.drone.pos.x,
+                self.drone.pos.y - 1.0,
+                self.drone.pos.z
+            )
+        )
+        return self._get_obs()
 
-        # Camera setup - position it to see the whole scene
-        self.camera = pr.Camera3D(
-            pr.Vector3(scene_size.x, scene_size.y, scene_size.z),   # position
-            pr.Vector3(half_size.x, half_size.y + 50, half_size.z), # target
+    def step(self, action: int, dt: float) -> Tuple[Dict, float, bool, Dict]:
+        if action:
+            if action == 0:
+                self.drone.update("forward", dt)
+            elif action == 1:
+                self.drone.update("backward", dt)
+            elif action == 2:
+                self.drone.update("left", dt)
+            elif action == 3:
+                self.drone.update("right", dt)
+            elif action == 4:
+                self.grenade.release()
+
+        self.grenade.update(dt, self.gravity, self.wind, self.drone.pos)
+        
+        done = self._check_done()
+        reward = self._calculate_reward()
+        
+        return self._get_obs(), reward, done, {}
+
+    def _get_obs(self) -> Dict:
+        grenade_vec = np.array([
+            self.drone.relative_position(self.grenade.pos).x,
+            self.drone.relative_position(self.grenade.pos).y,
+            self.drone.relative_position(self.grenade.pos).z
+        ])
+        
+        target_vec = np.array([
+            self.drone.relative_position(self.target.pos).x,
+            self.drone.relative_position(self.target.pos).y,
+            self.drone.relative_position(self.target.pos).z
+        ])
+        
+        dot_product = np.dot(grenade_vec, target_vec)
+        norm_grenade = np.linalg.norm(grenade_vec)
+        norm_target = np.linalg.norm(target_vec)
+        
+        if norm_grenade == 0 or norm_target == 0:
+            angle_rad = 0.0
+        else:
+            cos_theta = dot_product / (norm_grenade * norm_target)
+            cos_theta = np.clip(cos_theta, -1.0, 1.0)
+            angle_rad = math.acos(cos_theta)
+        
+        relative_distance = np.linalg.norm(target_vec - grenade_vec)
+        
+        return {
+            "drone_relative_pos": (0.0, 0.0, 0.0),
+            "grenade_relative_pos": tuple(grenade_vec),
+            "target_relative_pos": tuple(target_vec),
+            "relative_distance": relative_distance,
+            "angle_grenade_to_target": angle_rad,
+            "grenade_released": self.grenade.is_released
+        }
+
+    def _calculate_reward(self):
+        return 1.0
+
+    def _check_done(self):
+        if self.grenade.pos.y <= 0.0:
+            return True
+        return False
+
+    def render(self):
+        """Centralized rendering of all entities"""
+        pr.begin_drawing()
+        pr.clear_background(pr.WHITE)
+        
+        pr.begin_mode_3d(self._setup_camera())
+        
+        pr.draw_grid(int(self.scene_size.x/10), 10)
+
+        pr.draw_cube(self.drone.pos, self.drone.size.x, self.drone.size.y, self.drone.size.z, pr.BLUE)        
+        pr.draw_cube(self.grenade.pos, self.grenade.size.x, self.grenade.size.y, self.grenade.size.z, pr.RED)
+        pr.draw_cube(self.target.pos, self.target.size.x, self.target.size.y, self.target.size.z, pr.GREEN)
+        
+        pr.end_mode_3d()
+        pr.end_drawing()
+
+    def _setup_camera(self) -> pr.Camera3D:
+        camera = pr.Camera3D(
+            pr.Vector3(self.scene_size.x, self.scene_size.y, self.scene_size.z),   # position
+            pr.Vector3(self.half_size.x, self.half_size.y + 50, self.half_size.z), # target
             pr.Vector3(0, 1, 0),                                    # up
             45.0,                                                   # fovy
             pr.CAMERA_PERSPECTIVE                                   # projection
         )
-
-    def update(self, delta_time: float):
-        self.drone.update(delta_time)
-        self.grenade.update(delta_time, 0.0, pr.Vector3(0, 0, 0), self.drone)
-        # if not self.grenade.is_released:
-        #     self.grenade.follow_drone(self.drone.position)
-        
-        # if pr.is_key_pressed(pr.KEY_SPACE):
-        #     self.grenade.release()
-        
-        # if self.grenade.is_released:
-        #     self.grenade.update(delta_time, gravity=pr.Vector3(0, -9.8, 0), wind=pr.Vector3(0, 0, 0))
-
-    def draw(self, delta_time: float):
-        """Render the entire 3D scene with debug information."""
-        # 3D Rendering
-        pr.begin_mode_3d(self.camera)
-        
-        # Draw the ground grid (scaled to scene size)
-        grid_subdivisions = int(self.scene_size.x / 10)
-        grid_spacing = 10.0
-        pr.draw_grid(grid_subdivisions, grid_spacing)
-        
-        # Draw all game entities
-        self._draw_entities()
-        
-        pr.end_mode_3d()
-
-        # 2D Overlay (debug info)
-        self._draw_debug_info(delta_time)
-
-    def _draw_entities(self):
-        """Draw all 3D objects in the scene."""
-        # Draw target (green cube)
-        pr.draw_cube(self.target.position, 
-                    self.target.size.x, 
-                    self.target.size.y, 
-                    self.target.size.z, 
-                    self.target.color)
-
-        # Draw drone (blue cube)
-        pr.draw_cube(self.drone.position, 
-                    self.drone.size.x, 
-                    self.drone.size.y, 
-                    self.drone.size.z, 
-                    self.drone.color)
-
-        # Draw grenade
-        pr.draw_cube(self.grenade.position, 
-                    self.grenade.size.x, 
-                    self.grenade.size.y, 
-                    self.grenade.size.z, 
-                    self.grenade.color)
-
-    def _draw_debug_info(self, delta_time: float):
-        """Draw debug information as 2D overlay."""
-        # Drone position display
-        drone_pos_text = (
-            f"Drone Position: "
-            f"{self.drone.position.x:.1f}, "
-            f"{self.drone.position.y:.1f}, "
-            f"{self.drone.position.z:.1f}"
-        )
-        pr.draw_text(drone_pos_text, 10, 10, 20, pr.BLACK)
-        # Grenade position display
-        grenade_pos_text = (
-            f"Grenade Position: "
-            f"{self.grenade.position.x:.1f}, "
-            f"{self.grenade.position.y:.1f}, "
-            f"{self.grenade.position.z:.1f}"
-        )
-        pr.draw_text(grenade_pos_text, 10, 30, 20, pr.BLACK)
-        # Target position display
-        target_pos_text = (
-            f"Target Position: "
-            f"{self.target.position.x:.1f}, "
-            f"{self.target.position.y:.1f}, "
-            f"{self.target.position.z:.1f}"
-        )
-        pr.draw_text(target_pos_text, 10, 50, 20, pr.BLACK)
-        
-        # Grenade state display
-        grenade_state = "Released" if self.grenade.is_released else "Attached"
-        pr.draw_text(f"Grenade State: {grenade_state}", 10, 70, 20, pr.BLACK)
-        
-        velocity_text = (
-                f"Velocity: "
-                f"{self.drone.movement_vector.x:.1f}, "
-                f"{self.drone.movement_vector.y:.1f}, "
-                f"{self.drone.movement_vector.z:.1f}"
-            )
-        pr.draw_text(velocity_text, 10, 90, 20, pr.BLACK)
-
-        delta_time_text = (
-                f"Delta Time: "
-                f"{delta_time:.5f}, "
-            )
-        pr.draw_text(delta_time_text, 10, 110, 20, pr.BLACK)
-
-    def _get_random_position(self, half_size: pr.Vector3, min_distance: float = 0) -> pr.Vector3:
-        """Helper to get random position within bounds, ensuring min_distance from edges."""
-        return pr.Vector3(
-            random.uniform(-half_size.x + min_distance, half_size.x - min_distance),
-            0,  # On ground
-            random.uniform(-half_size.z + min_distance, half_size.z - min_distance)
-        )
-
+        return camera
