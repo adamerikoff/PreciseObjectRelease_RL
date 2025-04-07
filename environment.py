@@ -9,16 +9,13 @@ import entities
 class Environment:
     def __init__(self, scene_size: Tuple[float, float, float]):
         self.scene_size = pr.Vector3(*scene_size)
-        self.half_size = pr.Vector3(
-            scene_size[0]/2, 
-            scene_size[1]/2, 
-            scene_size[2]/2
-        )
+        self.half_size = pr.vector3_scale(scene_size, 0.5)
         self.wind = None
         self.gravity = None
         self.drone = None
         self.grenade = None
         self.target = None
+        self.episode_time = None
 
     def reset(self):
         self.gravity = pr.Vector3(0.0, -9.81, 0.0)
@@ -37,7 +34,7 @@ class Environment:
         self.drone = entities.Drone(
             pr.Vector3(
                 self.target.pos.x + random.uniform(-3.0, 3.0), 
-                random.randrange(self.half_size.y, self.scene_size.y), 
+                random.randrange(100, self.scene_size.y), 
                 self.target.pos.z + random.uniform(-3.0, 3.0)
             )
         )
@@ -48,6 +45,7 @@ class Environment:
                 self.drone.pos.z
             )
         )
+        self.episode_time = 0.0
         return self._get_obs()
 
     def step(self, action: int, dt: float) -> Tuple[Dict, float, bool, Dict]:
@@ -68,6 +66,8 @@ class Environment:
         done = self._check_done()
         reward = self._calculate_reward()
         
+        self.episode_time += dt
+
         return self._get_obs(), reward, done, {}
 
     def _get_obs(self) -> Dict:
@@ -76,7 +76,7 @@ class Environment:
             self.drone.relative_position(self.grenade.pos).y,
             self.drone.relative_position(self.grenade.pos).z
         ])
-        
+
         target_vec = np.array([
             self.drone.relative_position(self.target.pos).x,
             self.drone.relative_position(self.target.pos).y,
@@ -132,7 +132,7 @@ class Environment:
     def _setup_camera(self) -> pr.Camera3D:
         camera = pr.Camera3D(
             pr.Vector3(self.scene_size.x, self.scene_size.y, self.scene_size.z),   # position
-            pr.Vector3(self.half_size.x, self.half_size.y + 50, self.half_size.z), # target
+            pr.Vector3(self.half_size.x, self.half_size.y + 100, self.half_size.z), # target
             pr.Vector3(0, 1, 0),                                    # up
             45.0,                                                   # fovy
             pr.CAMERA_PERSPECTIVE                                   # projection
