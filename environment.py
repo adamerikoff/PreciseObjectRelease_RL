@@ -106,47 +106,46 @@ class Environment:
 
     def _get_obs(self) -> Dict:
         """Generate observation dictionary containing environment state"""
-        # Get grenade position relative to drone
-        grenade_vec = np.array([
-            self.drone.relative_position(self.grenade.pos).x,
-            self.drone.relative_position(self.grenade.pos).y,
-            self.drone.relative_position(self.grenade.pos).z
-        ])
+        grenade_vec = self.drone.relative_position(self.grenade.pos)
+        target_vec = self.drone.relative_position(self.target.pos)
+        
+        relative_distance = self._calculate_grenade_target_distance()
+        angle_rad = self._calculate_grenage_target_angle()
 
-        # Get target position relative to drone
-        target_vec = np.array([
-            self.drone.relative_position(self.target.pos).x,
-            self.drone.relative_position(self.target.pos).y,
-            self.drone.relative_position(self.target.pos).z
-        ])
-        
-        # Calculate angle between grenade and target vectors
-        dot_product = np.dot(grenade_vec, target_vec)  # Vector dot product
-        norm_grenade = np.linalg.norm(grenade_vec)  # Magnitude of grenade vector
-        norm_target = np.linalg.norm(target_vec)  # Magnitude of target vector
-        
-        # Handle division by zero cases
-        if norm_grenade == 0 or norm_target == 0:
-            angle_rad = 0.0
-        else:
-            cos_theta = dot_product / (norm_grenade * norm_target)
-            cos_theta = np.clip(cos_theta, -1.0, 1.0)  # Ensure valid acos input
-            angle_rad = math.acos(cos_theta)  # Angle in radians
-        
-        # Calculate Euclidean distance between grenade and target
-        relative_distance = np.linalg.norm(target_vec - grenade_vec)
-        
-        # Return observation dictionary
         return {
             "drone_relative_pos": (0.0, 0.0, 0.0),  # Drone is reference point
-            "grenade_relative_pos": tuple(grenade_vec),
-            "target_relative_pos": tuple(target_vec),
+            "grenade_relative_pos": (grenade_vec.x, grenade_vec.y, grenade_vec.z),
+            "target_relative_pos": (target_vec.x, target_vec.y, target_vec.z),
             "relative_distance": relative_distance,
             "angle_grenade_to_target": angle_rad,
             "grenade_released": self.grenade.is_released  # Release status flag
         }
 
-    def _calculate_reward(self):
+    def _calculate_grenade_target_distance(self) -> float:
+        grenade_vec = self.drone.relative_position(self.grenade.pos)
+        target_vec = self.drone.relative_position(self.target.pos)
+
+        return pr.vector3_length(pr.vector3_subtract(target_vec, grenade_vec))
+    
+    def _calculate_grenage_target_angle(self):
+        grenade_vec = self.drone.relative_position(self.grenade.pos)
+        target_vec = self.drone.relative_position(self.target.pos)
+
+        dot_product = pr.vector3_dot_product(grenade_vec, target_vec)
+
+        norm_grenade = pr.vector3_length(grenade_vec)
+        norm_target = pr.vector3_length(target_vec)
+        
+        if norm_grenade == 0 or norm_target == 0:
+            angle_rad = 0.0
+        else:
+            cos_theta = dot_product / (norm_grenade * norm_target)
+            cos_theta = np.clip(cos_theta, -1.0, 1.0)
+            angle_rad = math.acos(cos_theta)
+        
+        return angle_rad
+
+    def _calculate_reward(self) -> float:
         """Calculate reward for current state"""
         reward = -0.01
         if self._check_done():
@@ -180,7 +179,7 @@ class Environment:
         pr.draw_cube(self.target.pos, self.target.size.x, self.target.size.y, self.target.size.z, pr.GREEN)
         
         pr.end_mode_3d()  # End 3D rendering
-        self._print_debug_info()  # Display debug text
+        self._draw_debug_info()  # Display debug text
         pr.end_drawing()  # Finish drawing frame
 
     def _setup_camera(self) -> pr.Camera3D:
@@ -194,8 +193,9 @@ class Environment:
         )
         return camera
     
-    def _print_debug_info(self):
+    def _draw_debug_info(self):
         """Display debug information as on-screen text"""
+        distance = self._calculate_grenade_target_distance()
         debug_text = [
             f"Sim Timer: {self.episode_time}",
             f"Free Fall Timer: {self.free_fall_time}",
@@ -205,6 +205,8 @@ class Environment:
             f"Target Pos: ({self.target.pos.x:.1f}, {self.target.pos.y:.1f}, {self.target.pos.z:.1f})",
             f"Grenade Pos: ({self.grenade.pos.x:.1f}, {self.grenade.pos.y:.1f}, {self.grenade.pos.z:.1f})",
             f"Grenade Vel: ({self.grenade.vel.x:.1f}, {self.grenade.vel.y:.1f}, {self.grenade.vel.z:.1f})",
+            f"Grenade/Target Distance: ({self._calculate_grenade_target_distance()})",
+            f"Grenade/Target Angle: ({self._calculate_grenage_target_angle()})",
             f"Theoretical Fall Time: {self.theoretical_time_required:.2f}s"
         ]
 
