@@ -16,6 +16,7 @@ class Environment:
         self.grenade = None
         self.target = None
         self.episode_time = None
+        self.theoretical_time_required = None
 
     def reset(self):
         self.gravity = pr.Vector3(0.0, -9.81, 0.0)
@@ -45,7 +46,10 @@ class Environment:
                 self.drone.pos.z
             )
         )
+
         self.episode_time = 0.0
+        self.theoretical_time_required = (2*self.drone.pos.y/-self.gravity.y)**0.5
+
         return self._get_obs()
 
     def step(self, action: int, dt: float) -> Tuple[Dict, float, bool, Dict]:
@@ -127,6 +131,7 @@ class Environment:
         pr.draw_cube(self.target.pos, self.target.size.x, self.target.size.y, self.target.size.z, pr.GREEN)
         
         pr.end_mode_3d()
+        self._print_debug_info()
         pr.end_drawing()
 
     def _setup_camera(self) -> pr.Camera3D:
@@ -138,3 +143,19 @@ class Environment:
             pr.CAMERA_PERSPECTIVE                                   # projection
         )
         return camera
+    
+    def _print_debug_info(self):
+        debug_text = [
+            f"Sim Timer: {self.episode_time}",
+            f"Wind: ({self.wind.x:.1f}, {self.wind.y:.1f}, {self.wind.z:.1f})",
+            f"Gravity: ({self.gravity.x:.1f}, {self.gravity.y:.1f}, {self.gravity.z:.1f})",
+            f"Drone Pos: ({self.drone.pos.x:.1f}, {self.drone.pos.y:.1f}, {self.drone.pos.z:.1f})",
+            f"Target Pos: ({self.target.pos.x:.1f}, {self.target.pos.y:.1f}, {self.target.pos.z:.1f})",
+            f"Grenade Pos: ({self.grenade.pos.x:.1f}, {self.grenade.pos.y:.1f}, {self.grenade.pos.z:.1f})",
+            f"Grenade Vel: ({self.grenade.vel.x:.1f}, {self.grenade.vel.y:.1f}, {self.grenade.vel.z:.1f})",
+            f"Theoretical Fall Time: {self.theoretical_time_required:.2f}s"
+        ]
+
+        for i, text in enumerate(debug_text):
+            y_pos = 40 + i * 25  # 25px per line
+            pr.draw_text(text, 15, y_pos, 20, pr.BLACK)
