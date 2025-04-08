@@ -15,7 +15,6 @@ def main():
     # Environment setup
     env = environment.Environment((500, 400, 500))
     obs = env.reset()
-
     # Physics timing setup
     PHYSICS_DT = 1.0 / TARGET_FPS  # Fixed physics timestep
     accumulator = 0.0
@@ -54,7 +53,7 @@ def main():
             if pr.is_key_down(pr.KEY_LEFT): action = "left"
             if pr.is_key_down(pr.KEY_SPACE): action = "release"
 
-            obs, reward, done, info = env.step(action, PHYSICS_DT)
+            obs, reward, done = env.step(action, PHYSICS_DT)
             accumulator -= PHYSICS_DT
 
             if done:
@@ -65,7 +64,7 @@ def main():
                 
                 # Print episode summary
                 env.print_episode_summary(real_time_elapsed, total_real_time)
-                
+                print(obs)
                 # Reset environment
                 obs = env.reset()
                 episode_start_real_time = time.perf_counter()

@@ -20,6 +20,15 @@ class Environment:
         self.theoretical_time_required = None  # Calculated free-fall time
         self.free_fall_time = None
         self.total_reward = None
+        self.state_size = 9
+        self.action_size = 5
+        self.action_space = [
+            "forward",
+            "backward",
+            "left",
+            "right",
+            "release",
+        ]
 
     def reset(self):
         """Reset environment to initial state for new episode"""
@@ -71,7 +80,7 @@ class Environment:
 
         return self._get_obs()
 
-    def step(self, action: str, dt: float) -> Tuple[Dict, float, bool, Dict]:
+    def step(self, action: str, dt: float) -> Tuple[list, float, bool]:
         """Execute one timestep of the environment
         Args:
             action: str command for drone control
@@ -102,9 +111,9 @@ class Environment:
 
         self.total_reward += reward
 
-        return self._get_obs(), reward, done, {}
+        return self._get_obs(), reward, done
 
-    def _get_obs(self) -> Dict:
+    def _get_obs(self) -> list:
         """Generate observation dictionary containing environment state"""
         grenade_vec = self.drone.relative_position(self.grenade.pos)
         target_vec = self.drone.relative_position(self.target.pos)
@@ -112,14 +121,14 @@ class Environment:
         relative_distance = self._calculate_grenade_target_distance()
         angle_rad = self._calculate_grenage_target_angle()
 
-        return {
-            "drone_relative_pos": (0.0, 0.0, 0.0),  # Drone is reference point
-            "grenade_relative_pos": (grenade_vec.x, grenade_vec.y, grenade_vec.z),
-            "target_relative_pos": (target_vec.x, target_vec.y, target_vec.z),
-            "relative_distance": relative_distance,
-            "angle_grenade_to_target": angle_rad,
-            "grenade_released": self.grenade.is_released  # Release status flag
-        }
+        return [
+            grenade_vec.x, grenade_vec.y, grenade_vec.z,
+            target_vec.x, target_vec.y, target_vec.z,
+            relative_distance,
+            angle_rad,
+            1 if self.grenade.is_released else 0
+        ]
+
 
     def _calculate_grenade_target_distance(self) -> float:
         grenade_vec = self.drone.relative_position(self.grenade.pos)
@@ -127,7 +136,7 @@ class Environment:
 
         return pr.vector3_length(pr.vector3_subtract(target_vec, grenade_vec))
     
-    def _calculate_grenage_target_angle(self):
+    def _calculate_grenage_target_angle(self) -> float:
         grenade_vec = self.drone.relative_position(self.grenade.pos)
         target_vec = self.drone.relative_position(self.target.pos)
 
@@ -156,7 +165,7 @@ class Environment:
                 reward += -distance/50
         return reward  # Constant reward for demonstration
 
-    def _check_done(self):
+    def _check_done(self) -> bool:
         """Check termination conditions for current episode"""
         if self.grenade.pos.y <= 0.0:  # Episode ends when grenade hits ground
             return True
@@ -196,6 +205,9 @@ class Environment:
     def _draw_debug_info(self):
         """Display debug information as on-screen text"""
         distance = self._calculate_grenade_target_distance()
+        target_rel_pos = self.drone.relative_position(self.target.pos)
+        grenade_rel_pos = self.drone.relative_position(self.grenade.pos)
+
         debug_text = [
             f"Sim Timer: {self.episode_time}",
             f"Free Fall Timer: {self.free_fall_time}",
@@ -203,9 +215,11 @@ class Environment:
             f"Gravity: ({self.gravity.x:.1f}, {self.gravity.y:.1f}, {self.gravity.z:.1f})",
             f"Drone Pos: ({self.drone.pos.x:.1f}, {self.drone.pos.y:.1f}, {self.drone.pos.z:.1f})",
             f"Target Pos: ({self.target.pos.x:.1f}, {self.target.pos.y:.1f}, {self.target.pos.z:.1f})",
+            f"Target Rel Pos: ({target_rel_pos.x:.1f}, {target_rel_pos.y:.1f}, {target_rel_pos.z:.1f})",
             f"Grenade Pos: ({self.grenade.pos.x:.1f}, {self.grenade.pos.y:.1f}, {self.grenade.pos.z:.1f})",
+            f"Grenade Rel Pos: ({grenade_rel_pos.x:.1f}, {grenade_rel_pos.y:.1f}, {grenade_rel_pos.z:.1f})",
             f"Grenade Vel: ({self.grenade.vel.x:.1f}, {self.grenade.vel.y:.1f}, {self.grenade.vel.z:.1f})",
-            f"Grenade/Target Distance: ({self._calculate_grenade_target_distance()})",
+            f"Grenade/Target Distance: ({distance})",
             f"Grenade/Target Angle: ({self._calculate_grenage_target_angle()})",
             f"Theoretical Fall Time: {self.theoretical_time_required:.2f}s"
         ]

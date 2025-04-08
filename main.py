@@ -1,10 +1,10 @@
 import human_control
-import train
+import train_control
 
-MODE = "HUMAN"
+MODE = "TRAIN"
 
 if __name__ == "__main__":
     if MODE == "HUMAN":
         human_control.main()
     elif MODE == "TRAIN":
-        train.main()
+        train_control.main()

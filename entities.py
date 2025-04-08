@@ -27,10 +27,6 @@ class Drone:
         else:
             print(f"Error: Invalid drone action: {action}")  # Handle invalid inputs
 
-    def relative_position(self) -> pr.Vector3:
-        # Default implementation returns zero vector
-        return pr.Vector3(0.0, 0.0, 0.0)
-
     def relative_position(self, other: pr.Vector3) -> pr.Vector3:
         # Calculate position relative to another point in space
         return pr.vector3_subtract(other, self.pos)
@@ -71,14 +67,15 @@ class Grenade:
             # Calculate aerodynamic drag force
             drag_force = pr.Vector3(0, 0, 0)
             if pr.vector3_length(relative_velocity) > 0:
-                drag_force = pr.vector3_normalize(drag_force)
-                drag_force = pr.vector3_scale(drag_force, 
-                    self.air_density * -0.5 * self.drag_coef * 
-                    self.cross_sectional_area * pr.vector3_length(relative_velocity))
+                drag_direction = pr.vector3_normalize(relative_velocity)
+                drag_direction = pr.vector3_scale(drag_direction, -1.0)
+                speed = pr.vector3_length(relative_velocity)
+                drag_magnitude = 0.5 * self.air_density * self.drag_coef * self.cross_sectional_area * speed * speed
+                drag_force = pr.vector3_scale(drag_direction, drag_magnitude)
             
             # Combine forces and calculate acceleration
             net_force = pr.vector3_add(gravitational_force, drag_force)
-            acceleration = pr.vector3_scale(net_force, 1/self.mass)  # a = F/m
+            acceleration = pr.vector3_scale(net_force, 1/self.mass)
             
             # Update velocity and position using Euler integration
             self.vel = pr.vector3_add(self.vel, pr.vector3_scale(acceleration, dt))
