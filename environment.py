@@ -156,13 +156,13 @@ class Environment:
 
     def _calculate_reward(self) -> float:
         """Calculate reward for current state"""
-        reward = -0.1
+        reward = -0.05
         if self._check_done():
             distance = pr.vector3_distance(self.target.pos, self.grenade.pos)
             if distance < 2.0:
-                reward += 50
+                reward += 100
             else:
-                reward += -distance/50
+                reward += -distance/20
         return reward
 
     def _check_done(self) -> bool:
