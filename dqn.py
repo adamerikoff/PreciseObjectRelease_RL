@@ -3,8 +3,22 @@ import numpy as np
 from collections import deque
 import torch
 import torch.nn as nn
-import torch.functional as F
+import torch.nn.functional as F
 import torch.optim as optim
+
+class QNetwork(nn.Module):
+    def __init__(self, state_size, action_size, seed=None):  # Added seed parameter
+        super().__init__()
+        self.seed = torch.manual_seed(seed) if seed is not None else None
+        self.fc1 = nn.Linear(state_size, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(32, action_size)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return self.fc3(x)
+
 
 class ReplayBuffer:
     def __init__(self, buffer_size, batch_size):
@@ -12,10 +26,10 @@ class ReplayBuffer:
         self.batch_size = batch_size
 
     def push(self, state, action, reward, next_state, done):
-        grenade_released = state.get("grenade_released", False)  # Safely get the flag
+        grenade_released = state[-1]
 
         # Skip adding if not done AND grenade is released
-        if not done and grenade_released:
+        if not done and grenade_released == 1:
             return
 
         self.buffer.append((
@@ -43,20 +57,7 @@ class ReplayBuffer:
     def __len__(self):
         """Returns current number of stored experiences"""
         return len(self.buffer)
-    
 
-class QNetwork(nn.Module):
-    def __init__(self, state_size=9, action_size=5):  # Match your environment
-        super().__init__()
-        self.fc1 = nn.Linear(state_size, 64)
-        self.fc2 = nn.Linear(64, 32)
-        self.fc3 = nn.Linear(32, action_size)
-    
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        return self.fc3(x)  # No activation on output
-    
 
 class DQNAgent:
     """Interacts with and learns from the environment."""

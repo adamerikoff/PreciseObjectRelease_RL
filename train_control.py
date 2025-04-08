@@ -55,8 +55,6 @@ def main():
         state = env.reset()
         episode_start_real_time = time.perf_counter()
 
-        print(f"STARING STATE {state}")
-
         while not done and not pr.window_should_close():
             # Time management
             current_time = time.perf_counter()
@@ -68,6 +66,7 @@ def main():
 
             while accumulator >= PHYSICS_DT:
                 # Agent takes action
+                state = np.array(state, dtype=np.float32)  # Ensure state is a NumPy array
                 action = agent.act(state, epsilon)
 
                 # Environment step
@@ -87,7 +86,6 @@ def main():
                     total_real_time += real_time_elapsed
                     episode_rewards.append(episode_reward)
                     
-                    print(f"END STATE {state}")
 
                     avg_reward = np.mean(episode_rewards[-100:]) if episode_rewards else 0
                     print(f"\rEpisode {episode}/{n_episodes}, Total Steps: {total_steps}, Reward: {episode_reward:.2f}, Avg Reward (Last 100): {avg_reward:.2f}, Epsilon: {epsilon:.2f}, Real Time: {real_time_elapsed:.2f}", end="")
