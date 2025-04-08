@@ -7,7 +7,7 @@ import pyray as pr
 import entities
 
 class Environment:
-    def __init__(self, scene_size: Tuple[float, float, float]):
+    def __init__(self, scene_size: Tuple[float, float, float], enable_wind=True):
         # Initialize environment with 3D scene dimensions (width, height, depth)
         self.scene_size = pr.Vector3(*scene_size)  # Full dimensions of the environment
         self.half_size = pr.vector3_scale(scene_size, 0.5)  # Half dimensions for calculations
@@ -20,6 +20,7 @@ class Environment:
         self.theoretical_time_required = None  # Calculated free-fall time
         self.free_fall_time = None
         self.total_reward = None
+        self.enable_wind = enable_wind
         self.state_size = 9
         self.action_size = 5
         self.action_space = [
@@ -35,12 +36,19 @@ class Environment:
         # Set constant downward gravity (Earth standard)
         self.gravity = pr.Vector3(0.0, -9.81, 0.0)
         
-        # Initialize random wind with horizontal components only
-        self.wind = pr.Vector3(
-            random.uniform(-10.0, 10.0),  # Random x-component
-            0.0,  # No vertical wind
-            random.uniform(-10.0, 10.0)  # Random z-component
-        )
+        if self.enable_wind == False:
+            self.wind = pr.Vector3(
+                0.0,
+                0.0,
+                0.0
+            )
+        else:
+            # Initialize random wind with horizontal components only
+            self.wind = pr.Vector3(
+                random.uniform(-10.0, 10.0),  # Random x-component
+                0.0,  # No vertical wind
+                random.uniform(-10.0, 10.0)  # Random z-component
+            )
 
         # Place target on ground within bounds (keeping 100 unit margin from edges)
         self.target = entities.Target(
@@ -156,13 +164,13 @@ class Environment:
 
     def _calculate_reward(self) -> float:
         """Calculate reward for current state"""
-        reward = -0.05
+        reward = -0.1
         if self._check_done():
             distance = pr.vector3_distance(self.target.pos, self.grenade.pos)
-            if distance < 2.0:
-                reward += 100
+            if distance <= 5.0:
+                reward += 10
             else:
-                reward += -distance/20
+                reward += -distance/10
         return reward
 
     def _check_done(self) -> bool:

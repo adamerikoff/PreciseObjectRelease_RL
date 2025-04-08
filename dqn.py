@@ -7,38 +7,43 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 class QNetwork(nn.Module):
-    def __init__(self, state_size, action_size, seed=None):  # Added seed parameter
-        super().__init__()
-        self.seed = torch.manual_seed(seed) if seed is not None else None
-        self.fc1 = nn.Linear(state_size, 64)
-        self.fc2 = nn.Linear(64, 32)
-        self.fc3 = nn.Linear(32, action_size)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
+    def __init__(self, state_size, action_size):
+        super(QNetwork, self).__init__()
+        # Expanded architecture for 3D environment
+        self.fc1 = nn.Linear(state_size, 256)  # First hidden layer (increased)
+        self.fc2 = nn.Linear(256, 128)         # Second hidden layer (increased)
+        self.fc3 = nn.Linear(128, 64)          # Third hidden layer (increased)
+        self.fc4 = nn.Linear(64, 32)           # Additional hidden layer
+        self.fc5 = nn.Linear(32, action_size)  # Output layer
+        
+    def forward(self, state):
+        # Forward pass with ReLU activations
+        x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
-        return self.fc3(x)
-
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        return self.fc5(x)  # Output Q-values
 
 class ReplayBuffer:
     def __init__(self, buffer_size, batch_size):
         self.buffer = deque(maxlen=buffer_size)
         self.batch_size = batch_size
+        self.accumulator_reward = 0.0
 
     def push(self, state, action, reward, next_state, done):
-        grenade_released = state[-1]
-
-        # Skip adding if not done AND grenade is released
-        if not done and grenade_released == 1:
+        if state[-1] == 1 and not done:
+            self.accumulator_reward += reward
             return
-
-        self.buffer.append((
-            state,        # np.ndarray (state_size,)
-            action,       # int
-            reward,       # float
-            next_state,   # np.ndarray (state_size,)
-            done          # bool
-        ))
+        else:
+            reward = self.accumulator_reward + reward
+            self.buffer.append((
+                state,        # np.ndarray (state_size,)
+                action,       # int
+                reward,       # float
+                next_state,   # np.ndarray (state_size,)
+                done          # bool
+            ))
+            self.accumulator_reward = 0.0
 
     def sample(self):
         if len(self.buffer) < self.batch_size:
@@ -62,7 +67,7 @@ class ReplayBuffer:
 class DQNAgent:
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, seed,
+    def __init__(self, state_size, action_size,
                  buffer_size=10000, batch_size=64, gamma=0.99, lr=5e-4,
                  tau=1e-3, update_every=4, device=None):
         """Initialize an Agent object.
@@ -71,7 +76,6 @@ class DQNAgent:
         ======
             state_size (int): dimension of each state
             action_size (int): dimension of each action
-            seed (int): random seed
             buffer_size (int): size of replay buffer
             batch_size (int): size of each training batch
             gamma (float): discount factor
@@ -82,7 +86,6 @@ class DQNAgent:
         """
         self.state_size = state_size
         self.action_size = action_size
-        self.seed = random.seed(seed)
         self.gamma = gamma
         self.tau = tau
         self.update_every = update_every
@@ -91,8 +94,8 @@ class DQNAgent:
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Q-Network
-        self.qnetwork_local = QNetwork(state_size, action_size, seed).to(self.device)
-        self.qnetwork_target = QNetwork(state_size, action_size, seed).to(self.device)
+        self.qnetwork_local = QNetwork(state_size, action_size).to(self.device)
+        self.qnetwork_target = QNetwork(state_size, action_size).to(self.device)
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=self.lr)
 
         # Replay memory
@@ -102,6 +105,7 @@ class DQNAgent:
 
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
+        
         self.memory.push(state, action, reward, next_state, done)
 
         # Learn every UPDATE_EVERY time steps.
@@ -121,7 +125,7 @@ class DQNAgent:
             state (array_like): current state
             eps (float): epsilon for epsilon-greedy action selection
         """
-        state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
+        state = torch.from_numpy( np.array(state, dtype=np.float32)).float().unsqueeze(0).to(self.device)
         self.qnetwork_local.eval()
         with torch.no_grad():
             action_values = self.qnetwork_local(state)
