@@ -39,19 +39,21 @@ def main():
     SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 800
     WINDOW_TITLE = "Drone Grenade Environment"
     PHYSICS_DT = 0.1
-    N_EPISODES = 10000
+    N_EPISODES = 30_000
     
     # Training parameters
     EPSILON_START = 1.0
-    EPSILON_END = 0.01
-    EPSILON_DECAY = 0.999
-    
+    EPSILON_END = 0.05
+    EPSILON_DECAY = 0.9999
+    UPDATE_EVERY_EPS = 4
+    BUFFER_SIZE = 100_000
+    BATCH_SIZE = 128
     # Initialize window and environment
     pr.init_window(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE)
 
     env = environment.Environment((500, 400, 500))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    agent = DQNAgent(env.state_size, env.action_size, device=device, update_every=5)
+    agent = DQNAgent(env.state_size, env.action_size, device=device, update_every=UPDATE_EVERY_EPS, buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE)
     
     # Training tracking
     last_100_rewards = deque(maxlen=100)
@@ -69,11 +71,9 @@ def main():
         'epsilon', 'time_elapsed', 'real_time_elapsed', 'timestamp'
     ])
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
     # Main training loop
     for episode in range(1, N_EPISODES + 1):
-        state = env.reset(epsilon)
+        state = env.reset()
         episode_reward = 0
         episode_steps = 0
         done = False
@@ -145,7 +145,7 @@ def main():
     pr.close_window()
     
     # Final save and plot
-    training_stats.to_csv(f'training_stats_{timestamp}.csv', index=False)
+    training_stats.to_csv(f'training_stats.csv', index=False)
     
 if __name__ == "__main__":
     main()

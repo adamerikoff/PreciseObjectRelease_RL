@@ -22,6 +22,7 @@ class Environment:
         self.total_reward = None
         self.state_size = 9
         self.action_size = 5
+        self.steps = 0
         self.action_space = [
             "forward",
             "backward",
@@ -30,18 +31,17 @@ class Environment:
             "release",
         ]
 
-    def reset(self, epsilon):
+    def reset(self):
         """Reset environment to initial state for new episode"""
         # Set constant downward gravity (Earth standard)
         self.gravity = pr.Vector3(0.0, -9.81, 0.0)
 
-        phi =  1 - epsilon
 
         # Initialize random wind with horizontal components only
         self.wind = pr.Vector3(
-            random.uniform(-10.0, 10.0) * phi,  # Random x-component
+            random.uniform(-10.0, 10.0),  # Random x-component
             0.0,  # No vertical wind
-            random.uniform(-10.0, 10.0) * phi  # Random z-component
+            random.uniform(-10.0, 10.0)  # Random z-component
         )
 
         # Place target on ground within bounds (keeping 100 unit margin from edges)
@@ -56,9 +56,9 @@ class Environment:
         # Initialize drone near target position but at random height
         self.drone = entities.Drone(
             pr.Vector3(
-                self.target.pos.x + random.uniform(-100.0, 100.0) * phi,  # X near target
-                random.randrange(100, self.scene_size.y),  # Random height
-                self.target.pos.z + random.uniform(-100.0, 100.0) * phi  # Z near target
+                self.target.pos.x + random.uniform(-10.0, 10.0),  # X near target
+                random.randrange(50, self.scene_size.y),  # Random height
+                self.target.pos.z + random.uniform(-10.0, 10.0)  # Z near target
             )
         )
 
@@ -76,6 +76,8 @@ class Environment:
         self.free_fall_time = 0.0
 
         self.total_reward = 0.0
+        
+        self.steps = 0
 
         # Calculate theoretical free-fall time from drone height (t = √(2h/g))
         self.theoretical_time_required = (2*self.drone.pos.y/-self.gravity.y)**0.5
@@ -107,6 +109,7 @@ class Environment:
         
         # Increment episode timer
         self.episode_time += dt
+        self.steps += 1
 
         if self.grenade.is_released:
             self.free_fall_time += dt
@@ -116,7 +119,7 @@ class Environment:
         return self._get_obs(), reward, done
 
     def simulate_free_fall(self, dt: float) -> Tuple[list, float, bool, int]:
-        steps = 0
+        
         self.grenade.release() 
 
         while not self._check_done():
@@ -126,8 +129,8 @@ class Environment:
             reward = self._calculate_reward()
             self.total_reward += reward
             self.free_fall_time += dt
-            steps += 1
-        return self._get_obs(), reward, self._check_done(), steps
+            self.steps += 1
+        return self._get_obs(), reward, self._check_done(), self.steps
 
     def _get_obs(self) -> list:
         """Generate observation dictionary containing environment state"""
@@ -172,13 +175,13 @@ class Environment:
 
     def _calculate_reward(self) -> float:
         """Calculate reward for current state"""
-        reward = -0.1
+        reward = -0.1 * self.steps
         if self._check_done():
             distance = pr.vector3_distance(self.target.pos, self.grenade.pos)
             if distance <= 5:
-                reward += 50
+                reward += 50 * (5 - distance)
             else:
-                reward *= distance
+                reward -= distance
         return reward
 
     def _check_done(self) -> bool:

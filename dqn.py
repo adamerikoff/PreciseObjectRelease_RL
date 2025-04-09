@@ -88,7 +88,7 @@ class DQNAgent:
 
     def __init__(self, state_size, action_size,
                  buffer_size=10000, batch_size=128, gamma=0.99, lr=5e-4,
-                 tau=1e-3, update_every=4, device=None):
+                 tau=0.005, update_every=4, device=None):
         """Initialize an Agent object.
 
         Params
