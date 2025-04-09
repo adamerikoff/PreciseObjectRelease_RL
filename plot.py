@@ -27,6 +27,6 @@ def plot_training_progress(df):
     plt.savefig('training_progress.png')
     plt.close()
 
-training_stats = pd.read_csv('training_stats.csv', index=False)
+training_stats = pd.read_csv('training_stats_20250409_204928.csv')
 
 plot_training_progress(training_stats)

@@ -13,7 +13,7 @@ def main():
     pr.set_target_fps(TARGET_FPS)
 
     # Environment setup
-    env = environment.Environment((500, 400, 500))
+    env = environment.Environment((500, 400, 500), enable_wind=False)
     obs = env.reset()
     # Physics timing setup
     PHYSICS_DT = 1.0 / TARGET_FPS  # Fixed physics timestep

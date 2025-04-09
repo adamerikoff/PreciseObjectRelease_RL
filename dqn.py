@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import pandas as pd
 
 class QNetwork(nn.Module):
     def __init__(self, state_size, action_size):
@@ -28,22 +29,15 @@ class ReplayBuffer:
     def __init__(self, buffer_size, batch_size):
         self.buffer = deque(maxlen=buffer_size)
         self.batch_size = batch_size
-        self.accumulator_reward = 0.0
 
     def push(self, state, action, reward, next_state, done):
-        if state[-1] == 1 and not done:
-            self.accumulator_reward += reward
-            return
-        else:
-            reward = self.accumulator_reward + reward
-            self.buffer.append((
-                state,        # np.ndarray (state_size,)
-                action,       # int
-                reward,       # float
-                next_state,   # np.ndarray (state_size,)
-                done          # bool
-            ))
-            self.accumulator_reward = 0.0
+        self.buffer.append((
+            state,        # np.ndarray (state_size,)
+            action,       # int
+            reward,       # float
+            next_state,   # np.ndarray (state_size,)
+            done          # bool
+        ))
 
     def sample(self):
         if len(self.buffer) < self.batch_size:
@@ -62,13 +56,38 @@ class ReplayBuffer:
     def __len__(self):
         """Returns current number of stored experiences"""
         return len(self.buffer)
+    
+    def to_dataframe(self):
+        """Convert buffer contents to a pandas DataFrame"""
+        data = {
+            'state': [],
+            'action': [],
+            'reward': [],
+            'next_state': [],
+            'done': []
+        }
+        
+        for experience in self.buffer:
+            state, action, reward, next_state, done = experience
+            data['state'].append(state.copy())
+            data['action'].append(action)
+            data['reward'].append(reward)
+            data['next_state'].append(next_state.copy())
+            data['done'].append(done)
+        
+        return pd.DataFrame(data)
+    
+    def dump_to_csv(self, filename):
+        """Dump buffer contents to a CSV file"""
+        df = self.to_dataframe()
+        df.to_csv(filename, index=False)
 
 
 class DQNAgent:
     """Interacts with and learns from the environment."""
 
     def __init__(self, state_size, action_size,
-                 buffer_size=10000, batch_size=64, gamma=0.99, lr=5e-4,
+                 buffer_size=10000, batch_size=128, gamma=0.99, lr=5e-4,
                  tau=1e-3, update_every=4, device=None):
         """Initialize an Agent object.
 
@@ -117,7 +136,7 @@ class DQNAgent:
                 if experiences is not None:
                     self.learn(experiences, self.gamma)
 
-    def act(self, state, eps=0.):
+    def act(self, state, eps):
         """Returns actions for given state as per current policy.
 
         Params
