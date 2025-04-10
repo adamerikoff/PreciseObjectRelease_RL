@@ -16,7 +16,7 @@ def main():
 
     env = environment.Environment((500, 400, 500))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    agent = DQNAgent(env.state_size, env.action_size, device=device, update_every=UPDATE_EVERY_EPS, buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE)
+    agent = DQNAgent(env.state_size, env.action_size, device=device, update_every=UPDATE_EVERY_EPS, buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE, lr=LR, tau=TAU)
 
     # Training tracking
     last_10_rewards = deque(maxlen=10)

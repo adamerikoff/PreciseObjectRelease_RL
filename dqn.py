@@ -10,18 +10,22 @@ import pandas as pd
 class QNetwork(nn.Module):
     def __init__(self, state_size, action_size):
         super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(state_size, 256)  # First hidden layer (increased)
-        self.fc2 = nn.Linear(256, 128)         # Second hidden layer (increased)
-        self.fc3 = nn.Linear(128, 64)          # Third hidden layer (increased)
-        self.fc4 = nn.Linear(64, 32)           # Additional hidden layer
-        self.fc5 = nn.Linear(32, action_size)  # Output layer
+        self.net = nn.Sequential(
+            nn.Linear(state_size, 512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, action_size)
+        )
         
     def forward(self, state):
-        x = F.relu(self.fc1(state))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = F.relu(self.fc4(x))
-        return self.fc5(x)  # Output Q-values
+        return self.net(state)
 
 class ReplayBuffer:
     def __init__(self, buffer_size, batch_size):
@@ -120,8 +124,7 @@ class DQNAgent:
                 self.learn(experiences, self.gamma)
                 
                 self.target_counter += 1
-                if self.target_counter % 2 * self.update_every == 0:
-                    self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
+                self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
 
     def act(self, state, eps):
         state = torch.from_numpy( np.array(state, dtype=np.float32)).float().unsqueeze(0).to(self.device)

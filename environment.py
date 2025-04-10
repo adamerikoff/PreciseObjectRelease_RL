@@ -57,9 +57,9 @@ class Environment:
 
         self.drone = entities.Drone(
             pr.Vector3(
-                self.target.pos.x + random.uniform(-10.0, 10.0) * (1 - phi),
-                random.randrange(50, self.scene_size.y),
-                self.target.pos.z + random.uniform(-10.0, 10.0) * (1 - phi)
+                self.target.pos.x + random.uniform(-5.0, 5.0) * (1 - phi),
+                random.randrange(100, self.scene_size.y),
+                self.target.pos.z + random.uniform(-5.0, 5.0) * (1 - phi)
             )
         )
 
@@ -174,8 +174,6 @@ class Environment:
         if self._check_done():
             if current_distance <= SUCCESS_RADIUS:
                 self.success = True
-                if current_distance < 1:
-                    return 25
                 return 1 + wind_magnitude + (1 - current_distance/SUCCESS_RADIUS) + (1 - self.drone.pos.y/self.scene_size.y)
             
             return -(1 + current_distance/self.scene_size.x)
