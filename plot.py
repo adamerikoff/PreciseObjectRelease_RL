@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def plot_training_progress(df):
+def plot_training_progress(df, filename):
     """Helper function to plot training progress"""
     plt.figure(figsize=(16, 12))
 
@@ -17,8 +17,7 @@ def plot_training_progress(df):
 
     # Steps plot
     plt.subplot(2, 2, 2)
-    plt.plot(df['episode'], df['avg100'].rolling(window=100, min_periods=1).mean(), label='100-episode avg')
-    plt.plot(df['episode'], df['steps'], alpha=0.3, label='Episode steps')
+    plt.plot(df['episode'], df['steps'], label='Episode steps')
     plt.xlabel('Episode')
     plt.ylabel('Steps')
     plt.title('Steps per Episode')
@@ -46,15 +45,5 @@ def plot_training_progress(df):
     plt.grid(True)
 
     plt.tight_layout()
-    plt.savefig('training_progress.png')
+    plt.savefig(f'{filename}.png')
     plt.close()
-
-if __name__ == "__main__":
-    try:
-        training_stats = pd.read_csv('training_stats.csv')
-        plot_training_progress(training_stats)
-        print("Training progress plot saved as 'training_progress.png'")
-    except FileNotFoundError:
-        print("Error: 'training_stats.csv' not found. Make sure the training script has been run.")
-    except KeyError as e:
-        print(f"Error: Column '{e}' not found in 'training_stats.csv'. Ensure the training script saves this column.")

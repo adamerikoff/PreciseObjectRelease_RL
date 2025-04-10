@@ -260,3 +260,29 @@ class Environment:
         ]
 
         print("\n".join(output))
+
+    
+def print_episode(episode, steps, reward, eps, time_elapsed, real_time_elapsed):
+    """Flushing print for every episode"""
+    print(
+        f"Ep {episode:>6d} | "
+        f"S:{steps:>4d} | "
+        f"R:{reward:>7.2f} | "
+        f"ε:{eps:>.3f} | "
+        f"T:{time_elapsed:>5.2f}s | "
+        f"RT:{real_time_elapsed:>5.2f}s",
+        end='\r',
+        flush=True
+    )
+
+def print_100ep_summary(avgtime, avgrtime, avgsteps, avg100, total_time, eps, avg100success):
+    """Non-flushing detailed print for every 100 episodes"""
+    print("\n" + "="*80)
+    print(f"- Last 100 Avg Time: {avgtime:.2f}s per episode")
+    print(f"- Last 100 Avg Real Time: {avgrtime:.2f}s per episode")
+    print(f"- Last 100 Avg Steps: {avgsteps:.2f}")
+    print(f"- Last 100 Avg Reward: {avg100:.2f}")
+    print(f"- Last 100 Success Rate: {avg100success:.2f}%")
+    print(f"- Total Training Time: {total_time:.2f}s")
+    print(f"- Current Epsilon: {eps:.4f}")
+    print("="*80 + "\n")

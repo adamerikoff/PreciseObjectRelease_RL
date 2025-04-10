@@ -46,13 +46,20 @@ def main():
 
         while not done and not pr.window_should_close():
             action = agent.act(state, epsilon)
-        
-            next_state, reward, done = env.step(env.action_space[action], PHYSICS_DT)
-            episode_reward += reward
-            episode_steps += 1
-            agent.step(state, action, reward, next_state, done)
-            state = next_state
-            real_time_elapsed += PHYSICS_DT
+            if action == 4:
+                next_state, reward, done, steps = env.simulate_free_fall(PHYSICS_DT)
+                episode_reward += reward
+                episode_steps += steps
+                agent.step(state, action, reward, next_state, done)
+                state = next_state
+                real_time_elapsed += PHYSICS_DT
+            else:
+                next_state, reward, done = env.step(env.action_space[action], PHYSICS_DT)
+                episode_reward += reward
+                episode_steps += 1
+                agent.step(state, action, reward, next_state, done)
+                state = next_state
+                real_time_elapsed += PHYSICS_DT
 
         success = env.success
 
@@ -108,7 +115,7 @@ def main():
     pr.close_window()
 
     # Final save and plot
-    filename = 'training_stats_dqn_vanilla'
+    filename = 'training_stats_dqn_jump'
     training_stats.to_csv(f'{filename}.csv', index=False)
     
     training_stats = pd.read_csv(f"{filename}.csv")
