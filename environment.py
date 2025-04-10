@@ -174,8 +174,10 @@ class Environment:
         if self._check_done():
             if current_distance <= SUCCESS_RADIUS:
                 self.success = True
-                
+                if current_distance < 1:
+                    return 25
                 return 1 + wind_magnitude + (1 - current_distance/SUCCESS_RADIUS) + (1 - self.drone.pos.y/self.scene_size.y)
+            
             return -(1 + current_distance/self.scene_size.x)
 
         return -0.01

@@ -12,7 +12,7 @@ from config import *
 
 def main():
     # Initialize window and environment
-    pr.init_window(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE)
+    # pr.init_window(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE)
 
     env = environment.Environment((500, 400, 500))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -44,7 +44,7 @@ def main():
         success = False
         start_time = time.perf_counter()
 
-        while not done and not pr.window_should_close():
+        while not done: # and not pr.window_should_close():
             action = agent.act(state, epsilon)
             if action == 4:
                 next_state, reward, done, steps = env.simulate_free_fall(PHYSICS_DT)
@@ -112,7 +112,7 @@ def main():
         # Epsilon decay every episode (fixed placement)
         epsilon = max(EPSILON_END, epsilon * EPSILON_DECAY)
 
-    pr.close_window()
+    # pr.close_window()
 
     # Final save and plot
     filename = 'training_stats_dqn_jump'

@@ -10,7 +10,6 @@ import pandas as pd
 class QNetwork(nn.Module):
     def __init__(self, state_size, action_size):
         super(QNetwork, self).__init__()
-        # Expanded architecture for 3D environment
         self.fc1 = nn.Linear(state_size, 256)  # First hidden layer (increased)
         self.fc2 = nn.Linear(256, 128)         # Second hidden layer (increased)
         self.fc3 = nn.Linear(128, 64)          # Third hidden layer (increased)
@@ -18,7 +17,6 @@ class QNetwork(nn.Module):
         self.fc5 = nn.Linear(32, action_size)  # Output layer
         
     def forward(self, state):
-        # Forward pass with ReLU activations
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
@@ -54,11 +52,9 @@ class ReplayBuffer:
         return states, actions, rewards, next_states, dones
 
     def __len__(self):
-        """Returns current number of stored experiences"""
         return len(self.buffer)
     
     def to_dataframe(self):
-        """Convert buffer contents to a pandas DataFrame"""
         data = {
             'state': [],
             'action': [],
@@ -78,14 +74,11 @@ class ReplayBuffer:
         return pd.DataFrame(data)
     
     def dump_to_csv(self, filename):
-        """Dump buffer contents to a CSV file"""
         df = self.to_dataframe()
         df.to_csv(filename, index=False)
 
 
 class DQNAgent:
-    """Interacts with and learns from the environment."""
-
     def __init__(self, state_size, action_size,
                  buffer_size=10000, batch_size=128, gamma=0.99, lr=5e-4,
                  tau=0.005, update_every=4, device=None):
@@ -111,6 +104,7 @@ class DQNAgent:
         self.memory = ReplayBuffer(buffer_size, batch_size)
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
+        self.target_counter = 0
 
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
@@ -123,17 +117,13 @@ class DQNAgent:
             # If enough samples are available in memory, get random subset and learn
             if len(self.memory) > self.batch_size:
                 experiences = self.memory.sample()
-                if experiences is not None:
-                    self.learn(experiences, self.gamma)
+                self.learn(experiences, self.gamma)
+                
+                self.target_counter += 1
+                if self.target_counter % 2 * self.update_every == 0:
+                    self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
 
     def act(self, state, eps):
-        """Returns actions for given state as per current policy.
-
-        Params
-        ======
-            state (array_like): current state
-            eps (float): epsilon for epsilon-greedy action selection
-        """
         state = torch.from_numpy( np.array(state, dtype=np.float32)).float().unsqueeze(0).to(self.device)
         self.qnetwork_local.eval()
         with torch.no_grad():
@@ -147,13 +137,6 @@ class DQNAgent:
             return random.choice(np.arange(self.action_size))
 
     def learn(self, experiences, gamma):
-        """Update value parameters using given batch of experience tuples.
-
-        Params
-        ======
-            experiences (Tuple[torch.Tensor]): tuple of (s, a, r, s', done) tuples
-            gamma (float): discount factor
-        """
         states, actions, rewards, next_states, dones = experiences
 
         # Get max predicted Q values (for next states) from target model
@@ -172,18 +155,13 @@ class DQNAgent:
         loss.backward()
         self.optimizer.step()
 
-        # ------------------- update target network ------------------- #
-        self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
-
     def soft_update(self, local_model, target_model, tau):
         
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
     def save(self, filename):
-        """Save the local Q-network parameters."""
         torch.save(self.qnetwork_local.state_dict(), filename)
 
     def load(self, filename):
-        """Load the local Q-network parameters."""
         self.qnetwork_local.load_state_dict(torch.load(filename))
