@@ -4,63 +4,45 @@ import math
 
 class Drone:
     def __init__(self, position: pr.Vector3):
-        # Initialize drone with position, movement speed, and physical dimensions
-        self.pos = position  # 3D position in world space (x,y,z)
-        self.speed = 5.0  # Movement speed in units per second
-        self.size = pr.Vector3(5.0, 2.0, 5.0)  # Dimensions (width, height, depth)
+        self.pos = position
+        self.speed = 5.0
+        self.size = pr.Vector3(5.0, 2.0, 5.0)
         
     def update(self, action: str, dt: float):
-        """Update position based on action (positive x is forward)
-        Args:
-            action: Movement direction command
-            dt: Time delta since last update (for frame-rate independent movement)
-        """
-        # Move drone based on input command and elapsed time
         if action == "forward":
-            self.pos.x += self.speed * dt  # Move forward along x-axis
+            self.pos.x += self.speed * dt
         elif action == "backward":
-            self.pos.x -= self.speed * dt  # Move backward along x-axis
+            self.pos.x -= self.speed * dt
         elif action == "left":
-            self.pos.z -= self.speed * dt  # Move left along z-axis
+            self.pos.z -= self.speed * dt
         elif action == "right":
-            self.pos.z += self.speed * dt  # Move right along z-axis
+            self.pos.z += self.speed * dt
         else:
-            print(f"Error: Invalid drone action: {action}")  # Handle invalid inputs
+            print(f"Error: Invalid drone action: {action}")
 
     def relative_position(self, other: pr.Vector3) -> pr.Vector3:
-        # Calculate position relative to another point in space
         return pr.vector3_subtract(other, self.pos)
 
 class Grenade:
     def __init__(self, position: pr.Vector3):
-        # Initialize grenade physics properties
-        self.pos = position  # 3D position in world space
-        self.vel = pr.Vector3(0.0, 0.0, 0.0)  # Velocity vector
-        self.size = pr.Vector3(2.0, 2.0, 2.0)  # Physical dimensions
-        self.is_released = False  # Release state flag
-        self.mass = 0.4  # Mass in kilograms
-        self.drag_coef = 0.47  # Aerodynamic drag coefficient
-        self.air_density = 1.225  # Air density at sea level (kg/m³)
-        self.cross_sectional_area = math.pi * (0.032 / 2)**2  # Frontal area for drag calculation
+        self.pos = position 
+        self.vel = pr.Vector3(0.0, 0.0, 0.0)
+        self.size = pr.Vector3(2.0, 2.0, 2.0)
+        self.is_released = False
+        self.mass = 0.4
+        self.drag_coef = 0.47
+        self.air_density = 1.225
+        self.cross_sectional_area = math.pi * (0.032 / 2)**2
 
     def update(self, dt: float, gravity: pr.Vector3, wind: pr.Vector3, drone_pos: pr.Vector3):
-        """Update grenade physics
-        Args:
-            dt: Time delta for physics simulation
-            gravity: Gravity force vector
-            wind: Wind velocity vector
-            drone_pos: Current drone position (for unreleased state)
-        """
         if not self.is_released:
-            # If not released, follow drone position (slightly below it)
             self.pos = pr.Vector3(
-                drone_pos.x,  # Match drone x position
-                drone_pos.y - 2,  # Hang slightly below drone
-                drone_pos.z  # Match drone z position
+                drone_pos.x,
+                drone_pos.y - 2,
+                drone_pos.z
             )
-            self.vel = pr.Vector3(0, 0, 0)  # Zero velocity when carried
+            self.vel = pr.Vector3(0, 0, 0)
         else:
-            # Physics simulation when released
             gravitational_force = pr.vector3_scale(gravity, self.mass)  # F = m*g
             relative_velocity = pr.vector3_subtract(self.vel, wind)  # Velocity relative to wind
             
@@ -82,12 +64,10 @@ class Grenade:
             self.pos = pr.vector3_add(self.pos, pr.vector3_scale(self.vel, dt))
 
     def release(self):
-        """Trigger grenade release from drone"""
         if not self.is_released:
-            self.is_released = True  # Set release flag
+            self.is_released = True
 
 class Target:
     def __init__(self, position: pr.Vector3):
-        # Initialize target with position and size
-        self.pos = position  # 3D position in world space
-        self.size = pr.Vector3(4.0, 4.0, 4.0)  # Physical dimensions
+        self.pos = position
+        self.size = pr.Vector3(4.0, 4.0, 4.0)

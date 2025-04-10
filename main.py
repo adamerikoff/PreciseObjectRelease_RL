@@ -1,10 +1,10 @@
-import human_control
-import train_control
+import control_human
+import control_dqn
 
-MODE = "TRAIN"
+MODE = "DQN"
 
 if __name__ == "__main__":
     if MODE == "HUMAN":
-        human_control.main()
-    elif MODE == "TRAIN":
-        train_control.main()
+        control_human.main()
+    elif MODE == "DQN":
+        control_dqn.main()

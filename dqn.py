@@ -89,20 +89,7 @@ class DQNAgent:
     def __init__(self, state_size, action_size,
                  buffer_size=10000, batch_size=128, gamma=0.99, lr=5e-4,
                  tau=0.005, update_every=4, device=None):
-        """Initialize an Agent object.
-
-        Params
-        ======
-            state_size (int): dimension of each state
-            action_size (int): dimension of each action
-            buffer_size (int): size of replay buffer
-            batch_size (int): size of each training batch
-            gamma (float): discount factor
-            lr (float): learning rate
-            tau (float): interpolation parameter for soft update of target network
-            update_every (int): how often to update the network
-            device (torch.device): device to use for tensors (cpu or cuda)
-        """
+        
         self.state_size = state_size
         self.action_size = action_size
         self.gamma = gamma
@@ -111,6 +98,9 @@ class DQNAgent:
         self.batch_size = batch_size
         self.lr = lr
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.target_counter = 0
+
 
         # Q-Network
         self.qnetwork_local = QNetwork(state_size, action_size).to(self.device)
@@ -186,15 +176,7 @@ class DQNAgent:
         self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
 
     def soft_update(self, local_model, target_model, tau):
-        """Soft update model parameters.
-        θ_target = τ*θ_local + (1 - τ)*θ_target
-
-        Params
-        ======
-            local_model (nn.Module): weights will be copied from
-            target_model (nn.Module): weights will be copied to
-            tau (float): interpolation parameter
-        """
+        
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
