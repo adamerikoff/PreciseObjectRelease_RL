@@ -44,26 +44,35 @@ def main():
         success = False
         start_time = time.perf_counter()
 
-        while not done: # and not pr.window_should_close():
+        reward_accumulator = 0
+        release_state = None
+
+        while not done:
             action = agent.act(state, epsilon)
+            
             if action == 4:
-                next_state, reward, done, steps = env.simulate_free_fall(PHYSICS_DT)
-                episode_reward += reward
-                episode_steps += steps
-                agent.step(state, action, reward, next_state, done)
-                state = next_state
-                real_time_elapsed += PHYSICS_DT
+                release_state = state
+
+                while not done:
+                    next_state, reward, done = env.step(env.action_space[action], PHYSICS_DT)
+                    episode_steps += 1
+                    reward_accumulator += reward
+
+                reward = reward_accumulator
+                state = release_state
+                action = 4
             else:
                 next_state, reward, done = env.step(env.action_space[action], PHYSICS_DT)
-                episode_reward += reward
-                episode_steps += 1
-                agent.step(state, action, reward, next_state, done)
-                state = next_state
-                real_time_elapsed += PHYSICS_DT
+
+            episode_reward += reward
+            episode_steps += 1
+            agent.step(state, action, reward, next_state, done)
+            state = next_state
+            real_time_elapsed += PHYSICS_DT
+
+            # env.render()
 
         success = env.success
-
-        # env.render()
 
         # Update tracking
         time_elapsed = time.perf_counter() - start_time
@@ -120,6 +129,11 @@ def main():
     
     training_stats = pd.read_csv(f"{filename}.csv")
     plot.plot_training_progress(training_stats, filename)
+    
+    # Saving the model
+    model_filename = 'dqn_jump_model.pth'
+    agent.save(model_filename)
+    print(f"Model saved to {model_filename}")
 
 if __name__ == "__main__":
     main()

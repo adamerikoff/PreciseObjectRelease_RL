@@ -57,9 +57,9 @@ class Environment:
 
         self.drone = entities.Drone(
             pr.Vector3(
-                self.target.pos.x + random.uniform(-5.0, 5.0) * (1 - phi),
+                self.target.pos.x + random.uniform(-10.0, 10.0) * (1 - phi),
                 random.randrange(100, self.scene_size.y),
-                self.target.pos.z + random.uniform(-5.0, 5.0) * (1 - phi)
+                self.target.pos.z + random.uniform(-10.0, 10.0) * (1 - phi)
             )
         )
 
@@ -185,11 +185,14 @@ class Environment:
             return True
         return False
 
-    def render(self):
+    def render(self, top_view=False):
         pr.begin_drawing()
         pr.clear_background(pr.WHITE)
         
-        pr.begin_mode_3d(self._setup_camera())
+        if top_view:
+            pr.begin_mode_3d(self._setup_top_down_camera())
+        else:
+            pr.begin_mode_3d(self._setup_camera())
         
         pr.draw_grid(int(self.scene_size.x/10), 10)
 
@@ -210,6 +213,18 @@ class Environment:
             pr.CAMERA_PERSPECTIVE
         )
         return camera
+    
+    def _setup_top_down_camera(self) -> pr.Camera3D:
+        """Creates a camera positioned directly above the drone looking straight down"""
+        camera_height = 300  # Height above the drone
+        camera_offset = 5    # Small offset to avoid z-fighting
+        return pr.Camera3D(
+            pr.Vector3(self.drone.pos.x, self.drone.pos.y + camera_height, self.drone.pos.z + camera_offset),
+            pr.Vector3(self.drone.pos.x, self.drone.pos.y, self.drone.pos.z),
+            pr.Vector3(0, 0, 1),  # Z-axis is up in top-down view
+            45.0,
+            pr.CAMERA_PERSPECTIVE
+        )
     
     def _draw_debug_info(self):
         distance = self._calculate_grenade_target_distance()

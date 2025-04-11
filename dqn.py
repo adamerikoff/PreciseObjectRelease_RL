@@ -32,6 +32,9 @@ class ReplayBuffer:
         self.buffer = deque(maxlen=buffer_size)
         self.batch_size = batch_size
 
+        self.temp_state = None
+        self.reward_accamulator = 0
+
     def push(self, state, action, reward, next_state, done):
         self.buffer.append((
             state,        # np.ndarray (state_size,)
@@ -39,7 +42,7 @@ class ReplayBuffer:
             reward,       # float
             next_state,   # np.ndarray (state_size,)
             done          # bool
-        ))
+        ))      
 
     def sample(self):
         if len(self.buffer) < self.batch_size:
@@ -96,9 +99,6 @@ class DQNAgent:
         self.lr = lr
         self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.target_counter = 0
-
-
         # Q-Network
         self.qnetwork_local = QNetwork(state_size, action_size).to(self.device)
         self.qnetwork_target = QNetwork(state_size, action_size).to(self.device)
@@ -112,9 +112,8 @@ class DQNAgent:
 
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
-        
         self.memory.push(state, action, reward, next_state, done)
-
+        
         # Learn every UPDATE_EVERY time steps.
         self.t_step = (self.t_step + 1) % self.update_every
         if self.t_step == 0:
@@ -122,8 +121,6 @@ class DQNAgent:
             if len(self.memory) > self.batch_size:
                 experiences = self.memory.sample()
                 self.learn(experiences, self.gamma)
-                
-                self.target_counter += 1
                 self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
 
     def act(self, state, eps):

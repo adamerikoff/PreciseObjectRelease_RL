@@ -1,8 +1,9 @@
 import control_human
 import control_dqn_jump
 import control_dqn
+import control_test
 
-MODE = "DQN_JUMP"
+MODE = "TEST_MODEL"
 
 if __name__ == "__main__":
     if MODE == "HUMAN":
@@ -11,3 +12,6 @@ if __name__ == "__main__":
         control_dqn_jump.main()
     elif MODE == "DQN_VANILLA":
         control_dqn.main()
+    elif MODE == "TEST_MODEL":
+        control_test.main()
+    

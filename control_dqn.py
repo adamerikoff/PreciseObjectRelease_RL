@@ -12,11 +12,11 @@ from config import *
 
 def main():
     # Initialize window and environment
-    pr.init_window(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE)
+    # pr.init_window(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE)
 
     env = environment.Environment((500, 400, 500))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    agent = DQNAgent(env.state_size, env.action_size, device=device, update_every=UPDATE_EVERY_EPS, buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE)
+    agent = DQNAgent(env.state_size, env.action_size, device=device, update_every=UPDATE_EVERY_EPS, buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE, lr=LR, tau=TAU)
 
     # Training tracking
     last_10_rewards = deque(maxlen=10)
@@ -44,9 +44,8 @@ def main():
         success = False
         start_time = time.perf_counter()
 
-        while not done and not pr.window_should_close():
+        while not done:
             action = agent.act(state, epsilon)
-        
             next_state, reward, done = env.step(env.action_space[action], PHYSICS_DT)
             episode_reward += reward
             episode_steps += 1
@@ -54,9 +53,9 @@ def main():
             state = next_state
             real_time_elapsed += PHYSICS_DT
 
-        success = env.success
+            # env.render()
 
-        # env.render()
+        success = env.success
 
         # Update tracking
         time_elapsed = time.perf_counter() - start_time
@@ -105,7 +104,7 @@ def main():
         # Epsilon decay every episode (fixed placement)
         epsilon = max(EPSILON_END, epsilon * EPSILON_DECAY)
 
-    pr.close_window()
+    # pr.close_window()
 
     # Final save and plot
     filename = 'training_stats_dqn_vanilla'
