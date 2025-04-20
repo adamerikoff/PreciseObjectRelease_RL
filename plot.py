@@ -8,7 +8,6 @@ def plot_training_progress(df, filename):
     # Reward plot
     plt.subplot(2, 2, 1)
     plt.plot(df['episode'], df['avg100'], label='100-episode avg')
-    plt.plot(df['episode'], df['reward'], alpha=0.3, label='Episode reward')
     plt.xlabel('Episode')
     plt.ylabel('Reward')
     plt.title('Training Rewards')

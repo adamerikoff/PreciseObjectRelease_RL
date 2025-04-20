@@ -122,7 +122,7 @@ class DQNAgent:
                 experiences = self.memory.sample()
                 self.learn(experiences, self.gamma)
                 self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
-
+    
     def act(self, state, eps):
         state = torch.from_numpy( np.array(state, dtype=np.float32)).float().unsqueeze(0).to(self.device)
         self.qnetwork_local.eval()
