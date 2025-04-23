@@ -49,7 +49,7 @@ class QNetworkDeep(nn.Module):
 class QNetworkTief(nn.Module):
     """Deep network: 8 → 512 → 256 → 128 → 64 → 5"""
     def __init__(self, state_size=8, action_size=5):
-        super(QNetworkDeep, self).__init__()
+        super(QNetworkTief, self).__init__()
         self.fc1 = nn.Linear(state_size, 512)   # Input (8) → Hidden1 (512)
         self.fc2 = nn.Linear(512, 256)          # Input (512) → Hidden1 (256)
         self.fc3 = nn.Linear(256, 128)          # Hidden1 (256) → Hidden2 (128)

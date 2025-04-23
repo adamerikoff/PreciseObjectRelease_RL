@@ -23,7 +23,7 @@ class Drone:
             position: Initial 3D position (x,y,z) of the drone
         """
         self.pos: pr.Vector3 = position
-        self.speed: float = 10.0  # Movement speed in units/second
+        self.speed: float = 5.0  # Movement speed in units/second
         self.size: pr.Vector3 = pr.Vector3(10.0, 5.0, 10.0)  # Width, height, depth
 
     def update(self, action: str, dt: float) -> None:
