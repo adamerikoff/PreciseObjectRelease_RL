@@ -2,14 +2,13 @@ from collections import deque
 import time
 from typing import Type
 
-
 import torch
 import torch.nn as nn
 
 from config.config import BUFFER_SIZE, BATCH_SIZE, LR, TAU, EPSILON_START, N_EPISODES, PHYSICS_DT, EPSILON_END, EPSILON_DECAY, SCREEN_HEIGHT, SCREEN_WIDTH
 from src.environment import Environment
-from dqn.agent import DQN
-from dqn.buffer import Buffer
+from dqn.dqn_per import DQN_PER
+from dqn.per_buffer import PrioritizedReplayBuffer
 from src.renderer import Renderer
 
 import pandas as pd 
@@ -18,7 +17,6 @@ import numpy as np
 def train(
         title: str,
         q_network_class: Type[nn.Module],  # Your QNetwork class (Shallow/Medium/Deep)
-        buffer_class: Buffer,  # Your ReplayBuffer
         filename: str,
         render: bool = False
     ):
@@ -26,9 +24,16 @@ def train(
     env = Environment((500, 400, 500))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    buffer = buffer_class(BUFFER_SIZE)
+    # Initialize prioritized replay buffer with appropriate parameters
+    buffer = PrioritizedReplayBuffer(
+        capacity=BUFFER_SIZE,
+        alpha=0.6,       # prioritization strength (0.6 is a good starting point)
+        beta=0.4,        # initial importance sampling weight
+        beta_increment=0.001,
+        epsilon=1e-6
+    )
     q_network = q_network_class(state_size=env.state_size, action_size=env.action_size)
-    agent = DQN(
+    agent = DQN_PER(
         q_network=q_network,
         buffer=buffer,
         action_size=env.action_size,
@@ -164,7 +169,6 @@ def train(
 def train_jump(
         title: str,
         q_network_class: Type[nn.Module],  # Your QNetwork class (Shallow/Medium/Deep)
-        buffer_class: Buffer,  # Your ReplayBuffer
         filename: str,
         render: bool = False
     ):
@@ -172,9 +176,15 @@ def train_jump(
     env = Environment((500, 400, 500))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    buffer = buffer_class(BUFFER_SIZE)
+    buffer = PrioritizedReplayBuffer(
+        capacity=BUFFER_SIZE,
+        alpha=0.6,       # prioritization strength (0.6 is a good starting point)
+        beta=0.4,        # initial importance sampling weight
+        beta_increment=0.001,
+        epsilon=1e-6
+    )
     q_network = q_network_class(state_size=env.state_size, action_size=env.action_size)
-    agent = DQN(
+    agent = DQN_PER(
         q_network=q_network,
         buffer=buffer,
         action_size=env.action_size,

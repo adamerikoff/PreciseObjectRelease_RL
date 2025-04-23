@@ -67,9 +67,9 @@ class Environment:
         # Physics setup
         self.gravity = pr.Vector3(0.0, -9.81, 0.0)
         self.wind = pr.Vector3(
-            random.uniform(-10.0, 10.0) * (1),
+            random.uniform(-10.0, 10.0),
             0.0,
-            random.uniform(-10.0, 10.0) * (1)
+            random.uniform(-10.0, 10.0)
         )
 
         # Target placement (on ground)
@@ -94,7 +94,7 @@ class Environment:
         self.grenade = Grenade(
             pr.Vector3(
                 self.drone.pos.x,
-                self.drone.pos.y - 1.0,
+                self.drone.pos.y - 2.0,
                 self.drone.pos.z
             )
         )
@@ -215,7 +215,7 @@ class Environment:
                        (1 - self.drone.pos.y/self.scene_size.y))
             return -(1 + current_distance/self.scene_size.x)
 
-        return -0.01  # Small penalty for each timestep
+        return -0.05  # Small penalty for each timestep
 
     def check_done(self) -> bool:
         """Check if episode should terminate.
