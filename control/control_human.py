@@ -28,7 +28,7 @@ def main() -> None:
     done: bool = False
 
     # Rendering setup
-    renderer: Renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE, env)
+    renderer: Renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE, env, True, True)
     renderer.window_init()
 
     # Main game loop
@@ -56,7 +56,6 @@ def main() -> None:
 
         # Rendering and frame pacing
         renderer.render()
-        time.sleep(0.02)
 
     # Cleanup
     renderer.close_window()

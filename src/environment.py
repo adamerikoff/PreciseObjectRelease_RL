@@ -38,38 +38,16 @@ class Environment:
         # Spatial properties
         self.scene_size: pr.Vector3 = pr.Vector3(*scene_size)
         self.half_size: pr.Vector3 = pr.vector3_scale(self.scene_size, 0.5)
-        
-        # Physics properties
-        self.gravity: Optional[pr.Vector3] = None
-        self.wind: Optional[pr.Vector3] = None
-        
-        # Entities
-        self.target: Optional[Target] = None
-        self.drone: Optional[Drone] = None
-        self.grenade: Optional[Grenade] = None
-        
-        # Episode tracking
-        self.episode_time: Optional[float] = None
-        self.free_fall_time: Optional[float] = None
-        self.episode_reward: Optional[float] = None
-        self.episode_steps: Optional[int] = None
-        self.success: bool = False
 
-    def reset(self, height: Optional[float] = None) -> List[float]:
-        """Reset the environment to initial state.
-        
-        Args:
-            height: Optional starting height for the drone. If None, random height is used.
-            
-        Returns:
-            Initial observation vector
-        """
+        self.initialize_env()
+
+    def initialize_env(self, height: Optional[float] = None):
         # Physics setup
         self.gravity = pr.Vector3(0.0, -9.81, 0.0)
         self.wind = pr.Vector3(
-            random.uniform(-10.0, 10.0),
+            random.uniform(-20.0, 20.0),
             0.0,
-            random.uniform(-10.0, 10.0)
+            random.uniform(-20.0, 20.0)
         )
 
         # Target placement (on ground)
@@ -106,6 +84,24 @@ class Environment:
         self.episode_steps: int = 0
         self.success: bool = False
 
+        self.action_count: Dict = {
+            "forward": 0,    
+            "backward": 0,   
+            "left": 0,       
+            "right": 0,      
+            "release": 0,
+        }
+
+    def reset(self, height: Optional[float] = None) -> List[float]:
+        """Reset the environment to initial state.
+        
+        Args:
+            height: Optional starting height for the drone. If None, random height is used.
+            
+        Returns:
+            Initial observation vector
+        """
+        self.initialize_env(height)
         return self.get_obs()
 
     def step(self, action: Optional[str], dt: float) -> Tuple[List[float], float, bool]:
@@ -118,6 +114,7 @@ class Environment:
         Returns:
             Tuple of (observation, reward, done)
         """
+        if action is not None: self.action_count[action] += 1
         if action:
             if action == "release":
                 self.grenade.release()
@@ -210,12 +207,12 @@ class Environment:
         if self.check_done():
             if current_distance <= SUCCESS_RADIUS:
                 self.success = True
-                return (1 + wind_magnitude + 
+                return (20 + wind_magnitude + 
                        (1 - current_distance/SUCCESS_RADIUS) + 
                        (1 - self.drone.pos.y/self.scene_size.y))
-            return -(1 + current_distance/self.scene_size.x)
+            return -(current_distance/self.scene_size.x)
 
-        return -0.05  # Small penalty for each timestep
+        return -0.01  # Small penalty for each timestep
 
     def check_done(self) -> bool:
         """Check if episode should terminate.
@@ -245,6 +242,7 @@ class Environment:
             f"TOTAL STEPS:      {steps}s",
             f"COLLISION REWARD: {collision_reward}",
             f"SUCCESS:          {self.success}",
+            f"AC: f={self.action_count['forward']} b={self.action_count['backward']} l={self.action_count['left']} r={self.action_count['right']} r={self.action_count['release']}",
             separator
         ]
 

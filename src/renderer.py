@@ -2,6 +2,7 @@
 3D rendering module for drone grenade delivery simulation.
 Handles visualization of the environment and debug information.
 """
+import time
 
 import pyray as pr
 from typing import List, Optional
@@ -33,7 +34,7 @@ class Renderer:
         self.title: str = title
         self.env: Environment = env
         self.debug: bool = debug
-        self.camera: pr.Camera3D = self.setup_camera_top_view() if top else self.setup_camera_side_view()
+        self.top = top
 
     def window_init(self) -> None:
         """Initialize the rendering window."""
@@ -49,7 +50,7 @@ class Renderer:
         pr.clear_background(pr.WHITE)
         
         # 3D scene rendering
-        pr.begin_mode_3d(self.camera)
+        pr.begin_mode_3d(self.setup_camera_top_view() if self.top else self.setup_camera_side_view())
         self._render_3d_scene()
         pr.end_mode_3d()
         
@@ -58,6 +59,7 @@ class Renderer:
             self.draw_debug_info()
             
         pr.end_drawing()
+        time.sleep(0.001)
 
     def _render_3d_scene(self) -> None:
         """Render all 3D elements of the simulation."""
@@ -67,9 +69,9 @@ class Renderer:
         
         # Draw entities
         pr.draw_cube(self.env.drone.pos, 
-                    self.env.drone.size.x, 
-                    self.env.drone.size.y, 
-                    self.env.drone.size.z, 
+                    0 if self.top else self.env.drone.size.x, 
+                    0 if self.top else self.env.drone.size.y, 
+                    0 if self.top else self.env.drone.size.z, 
                     pr.BLUE)
         
         pr.draw_cube(self.env.grenade.pos, 
@@ -118,8 +120,8 @@ class Renderer:
         return pr.Camera3D(
             pr.Vector3(
                 self.env.drone.pos.x, 
-                self.env.drone.pos.y + 50, 
-                self.env.drone.pos.z + 5
+                self.env.drone.pos.y + 300, 
+                self.env.drone.pos.z
             ),
             pr.Vector3(
                 self.env.drone.pos.x, 
