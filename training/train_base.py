@@ -1,14 +1,14 @@
 from collections import deque
 import time
-from typing import Type
 
 import torch
 import torch.nn as nn
 
-from config.config import BUFFER_SIZE, BATCH_SIZE, GAMMA, LR, TARGET_UPDATE_INTERVAL, EPSILON_START, N_EPISODES, PHYSICS_DT, EPSILON_END, EPSILON_DECAY, SCREEN_HEIGHT, SCREEN_WIDTH
+from CONFIG import GAMMA, LR, BUFFER_SIZE, BATCH_SIZE, UPDATE_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, EPSILON_START, EPSILON_END, EPSILON_DECAY, N_EPISODES, PHYSICS_DT, TAU
 from src.environment import Environment
 from src.renderer import Renderer
-from dqn.dqn import DQNAgent
+from agent.dqn import DQNAgent, QNetwork, ReplayBuffer
+
 
 import pandas as pd 
 import numpy as np
@@ -20,11 +20,11 @@ def train(
         jump: bool = False,
         top: bool = False
     ):
-    # Environment setup
-    env = Environment((500, 400, 500))
+
+    env = Environment(np.array([500, 400, 500]))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    agent = DQNAgent(env.state_size, env.action_size, GAMMA, LR, BUFFER_SIZE, BATCH_SIZE, TARGET_UPDATE_INTERVAL, device)
+    agent = DQNAgent(env.state_size, env.action_size, GAMMA, LR, BUFFER_SIZE, BATCH_SIZE, UPDATE_INTERVAL, TAU, device)
 
     if render: 
         renderer: Renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, title, env, top)
@@ -55,11 +55,11 @@ def train(
     # Main training loop
     for episode in range(1, N_EPISODES + 1):
         real_time_elapsed = 0.0
+        episode_reward = 0.0
+        
         state = env.reset()
         done = False
         start_time = time.perf_counter()
-
-        episode_reward = 0
 
         if jump:
             while not done:
@@ -67,35 +67,27 @@ def train(
                 if action == 4:
                     release_state = state
                     while not done:
-                        next_state, reward, done = env.step(env.action_space[action], PHYSICS_DT)
+                        next_state, reward, done = env.step(action, PHYSICS_DT)
                         real_time_elapsed += PHYSICS_DT
                         episode_reward += reward
-                        if render:
-                            renderer.render()
+                        if render: renderer.render()
                     state = release_state
                     reward = episode_reward
-                    action = 4
                 else:
-                    next_state, reward, done = env.step(env.action_space[action], PHYSICS_DT)
-
-                # Store experience and train
-                agent.step(state, action, reward, next_state, done, remember=True)
+                    next_state, reward, done = env.step(action, PHYSICS_DT)
+                    
+                agent.step(state, action, reward, next_state, done)
                 state = next_state
                 real_time_elapsed += PHYSICS_DT
-
-                if render:
-                    renderer.render()
+                if render: renderer.render()
         else:
             while not done:
-                # Get action and step
                 action = agent.act(state, epsilon)
-                next_state, reward, done = env.step(env.action_space[action], PHYSICS_DT)
-                
-                # Store experience and train
+                next_state, reward, done = env.step(action, PHYSICS_DT)
                 agent.step(state, action, reward, next_state, done)
-
                 state = next_state
                 real_time_elapsed += PHYSICS_DT
+                if render: renderer.render()
 
         episode_reward = env.episode_reward
         episode_steps = env.episode_steps
@@ -176,4 +168,3 @@ def train(
 
     if render: 
         renderer.close_window()
-

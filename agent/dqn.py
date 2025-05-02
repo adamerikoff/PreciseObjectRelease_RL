@@ -23,46 +23,58 @@ class ReplayBuffer:
 
     def __len__(self):
         return len(self.memory)
+    
 
 class QNetwork(nn.Module):
     def __init__(self, state_size, action_size):
-        super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(state_size, 256)
-        self.fc2 = nn.Linear(256, 128)
-        self.fc3 = nn.Linear(128, 64)
-        self.fc4 = nn.Linear(64, 32)
-        self.fc5 = nn.Linear(32, action_size)
-        self.relu = nn.ReLU()
-
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Linear(state_size, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, action_size)
+        )
+    
     def forward(self, state):
-        x = self.relu(self.fc1(state))
-        x = self.relu(self.fc2(x))
-        x = self.relu(self.fc3(x))
-        x = self.relu(self.fc4(x))
-        return self.fc5(x)
+        return self.model(state)
 
 class DQNAgent:
-    def __init__(self, state_size, action_size,
-                 gamma=0.99,
-                 learning_rate=0.001,
-                 buffer_size=100000,
-                 batch_size=64,
-                 target_update_interval=100,
-                 device="cpu"):
+    def __init__(
+        self, 
+        state_size, 
+        action_size,
+        gamma=0.99,
+        learning_rate=0.001,
+        buffer_size=100000,
+        batch_size=64,
+        update_interval=100,
+        tau=0.005,
+        device="cpu"
+    ) -> None:
         self.state_size = state_size
         self.action_size = action_size
+
         self.gamma = gamma
         self.learning_rate = learning_rate
+        self.update_interval = update_interval
+        self.tau = tau
+
         self.buffer_size = buffer_size
         self.batch_size = batch_size
-        self.target_update_interval = target_update_interval
+
         self.device = device
 
         self.q_network = QNetwork(state_size, action_size).to(device)
         self.target_network = QNetwork(state_size, action_size).to(device)
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate)
 
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate)
         self.memory = ReplayBuffer(buffer_size)
+
         self.time_step = 0
 
     def act(self, state, epsilon=0.01):
@@ -76,15 +88,12 @@ class DQNAgent:
         else:
             return random.choice(range(self.action_size))
 
-    def step(self, state, action, reward, next_state, done, remember=True):
-        if remember:
-            self.memory.add(state, action, reward, next_state, done)
+    def step(self, state, action, reward, next_state, done):
+        self.memory.add(state, action, reward, next_state, done)
         self.time_step += 1
 
-        if len(self.memory) > self.batch_size:
+        if self.time_step % self.update_interval == 0 and len(self.memory) > self.batch_size:
             self.learn()
-
-        if self.time_step % self.target_update_interval == 0:
             self.update_target_network()
 
     def learn(self):
@@ -109,7 +118,8 @@ class DQNAgent:
         self.optimizer.step()
 
     def update_target_network(self):
-        self.target_network.load_state_dict(self.q_network.state_dict())
+        for target_param, local_param in zip(self.target_network.parameters(), self.q_network.parameters()):
+            target_param.data.copy_(self.tau*local_param.data + (1.0-self.tau)*target_param.data)
 
     def save(self, filepath):
         torch.save(self.q_network.state_dict(), filepath)

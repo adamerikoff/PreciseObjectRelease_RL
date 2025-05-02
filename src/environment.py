@@ -1,89 +1,53 @@
-"""
-Environment module for drone grenade delivery simulation.
-Handles the physics, state management, and reward calculation for the training environment.
-"""
-
-import random
-import math
 from typing import Tuple, List, Optional, Dict, Any
+import math
 
-import numpy as np
 import pyray as pr
+import numpy as np
 
-from src.entities import Grenade, Target, Drone
+from src.objects import Drone, Ball, Target
 
 class Environment:
-    """
-    A 3D environment for simulating drone-based grenade delivery to targets.
-    Handles physics simulation, state observation, and reward calculation.
-    """
-    
-    def __init__(self, scene_size: Tuple[float, float, float]) -> None:
-        """Initialize the environment with given dimensions.
-        
-        Args:
-            scene_size: Tuple of (width, height, depth) for environment bounds
-        """
-        # Environment dimensions
-        self.state_size: int = 8  # Dimension of observation space
-        self.action_size: int = 5  # Dimension of action space
-        self.action_space: List[str] = [
-            "forward",    # Move drone forward
-            "backward",   # Move drone backward
-            "left",       # Move drone left
-            "right",      # Move drone right
-            "release",   # Release grenade
-        ]
+    def __init__(self, scene_size: np.ndarray[np.float64], ) -> None:
+        self.scene_size: np.ndarray[np.float64] = scene_size
+        self.half_scene_size: np.ndarray[np.float64] = scene_size / 2
 
-        # Spatial properties
-        self.scene_size: pr.Vector3 = pr.Vector3(*scene_size)
-        self.half_size: pr.Vector3 = pr.vector3_scale(self.scene_size, 0.5)
+        self.state_size: int = 9
+        self.action_size: int = 5
 
-        self.initialize_env()
+    def reset(self, height: Optional[float] = None) -> np.ndarray[np.float64]:
+        self.gravity: np.ndarray[np.float64] = np.array([0.0, -9.81, 0.0], dtype=np.float64)
+        self.wind: np.ndarray[np.float64] = np.array([
+            np.random.uniform(-10.0, 10.0),  # x: random between -20 and 20
+            0.0,                              # y: fixed at 0
+            np.random.uniform(-10.0, 10.0)   # z: random between -20 and 20
+        ])
 
-    def initialize_env(self, height: Optional[float] = None):
-        # Physics setup
-        self.gravity = pr.Vector3(0.0, -9.81, 0.0)
-        self.wind = pr.Vector3(
-            random.uniform(-20.0, 20.0),
-            0.0,
-            random.uniform(-20.0, 20.0)
-        )
+        target_pos = np.array([
+            np.random.uniform(-self.half_scene_size[0], self.half_scene_size[0]),
+            0.0,                             
+            np.random.uniform(-self.half_scene_size[2], self.half_scene_size[2])
+        ], dtype=np.float64)
+        drone_pos = np.array([
+            target_pos[0] + np.random.uniform(-10.0, 10.0),
+            height if height is not None else np.random.uniform(50.0, self.scene_size[1]),                             
+            target_pos[2] + np.random.uniform(-10.0, 10.0)  # Fixed index from [3] to [2]
+        ], dtype=np.float64)
+        ball_pos = np.array([
+            drone_pos[0],
+            drone_pos[1] - 2.0,
+            drone_pos[2]
+        ], dtype=np.float64)
 
-        # Target placement (on ground)
-        self.target = Target(
-            pr.Vector3(
-                random.uniform(-self.half_size.x + 100, self.half_size.x - 100),
-                0.0,
-                random.uniform(-self.half_size.z + 100, self.half_size.z - 100)
-            )
-        )
+        self.target = Target(target_pos)
+        self.drone = Drone(drone_pos)
+        self.ball = Ball(ball_pos)
 
-        # Drone placement (near target)
-        self.drone = Drone(
-            pr.Vector3(
-                self.target.pos.x + random.uniform(-10.0, 10.0),
-                height if height else random.randrange(100, self.scene_size.y),
-                self.target.pos.z + random.uniform(-10.0, 10.0)
-            )
-        )
-
-        # Grenade placement (just below drone)
-        self.grenade = Grenade(
-            pr.Vector3(
-                self.drone.pos.x,
-                self.drone.pos.y - 2.0,
-                self.drone.pos.z
-            )
-        )
-
-        # Reset episode tracking
         self.episode_time: float = 0.0
         self.free_fall_time: float = 0.0
         self.episode_reward: float = 0.0
         self.episode_steps: int = 0
         self.success: bool = False
-
+        
         self.action_count: Dict = {
             "forward": 0,    
             "backward": 0,   
@@ -92,36 +56,22 @@ class Environment:
             "release": 0,
         }
 
-    def reset(self, height: Optional[float] = None) -> List[float]:
-        """Reset the environment to initial state.
-        
-        Args:
-            height: Optional starting height for the drone. If None, random height is used.
-            
-        Returns:
-            Initial observation vector
-        """
-        self.initialize_env(height)
         return self.get_obs()
 
-    def step(self, action: Optional[str], dt: float) -> Tuple[List[float], float, bool]:
-        """Execute one timestep of the environment.
-        
-        Args:
-            action: The action to take (from action_space)
-            dt: Time delta for physics simulation
-            
-        Returns:
-            Tuple of (observation, reward, done)
-        """
-        if action is not None: self.action_count[action] += 1
-        if action:
-            if action == "release":
-                self.grenade.release()
+    def step(self, action: Optional[int], dt: float) -> Tuple[np.ndarray[np.float64], float, float]:
+        if action is not None: 
+            if action == 0: self.action_count["forward"] += 1
+            if action == 1: self.action_count["backward"] += 1
+            if action == 2: self.action_count["left"] += 1
+            if action == 3: self.action_count["right"] += 1
+            if action == 4: self.action_count["release"] += 1
+        if action is not None:
+            if action == 4:
+                self.ball.release()
             else:
                 self.drone.update(action, dt)
 
-        self.grenade.update(dt, self.gravity, self.wind, self.drone.pos)
+        self.ball.update(self.gravity, self.wind, self.drone.position, dt)
         
         done: bool = self.check_done()
         reward: float = self.calculate_reward()
@@ -129,105 +79,82 @@ class Environment:
         self.episode_time += dt
         self.episode_steps += 1
 
-        if self.grenade.is_released:
+        if self.ball.is_released:
             self.free_fall_time += dt
 
         self.episode_reward += reward
 
-        return self.get_obs(), reward, done
+        return (
+            self.get_obs(),      # Flattened observations (1D array)
+            reward, float(done)  # Reward + done flag
+        )
+    
+    def check_done(self) -> bool:
+        return self.ball.position[1] <= 0.0
+    
+    def calculate_reward(self) -> float:
+        wind_magnitude: float = np.linalg.norm(self.wind)
+        current_distance: float = np.linalg.norm(self.target.position - self.ball.position)
+        if self.check_done():
+            if current_distance <= self.target.radius:
+                self.success = True
+                distance_ratio = 1 - current_distance/self.target.radius
+                height_ratio = 1 - self.drone.position[1]/self.scene_size[1]
+                return (1 + wind_magnitude + distance_ratio + height_ratio)
+            return -(current_distance/self.scene_size[0])
+        return -0.01
+    
+    def calculate_ball_target_angle(self) -> float:
+        ball_vec: np.ndarray[np.float64] = self.ball.position - self.drone.position
+        target_vec: np.ndarray[np.float64] = self.target.position - self.drone.position
 
-    def get_obs(self) -> List[float]:
+        dot_product: float = np.dot(ball_vec, target_vec)
+        norm_grenade: float = np.linalg.norm(ball_vec)
+        norm_target: float = np.linalg.norm(target_vec)
+
+        if norm_grenade == 0 or norm_target == 0:
+            return 0.0
+        
+        cos_theta: float = np.clip(dot_product / (norm_grenade * norm_target), -1.0, 1.0)
+        return math.acos(cos_theta)
+    
+    def calculate_ball_target_distance(self) -> float:
+        ball_vec: np.ndarray[np.float64] = self.ball.position - self.drone.position
+        target_vec: np.ndarray[np.float64] = self.target.position - self.drone.position
+        return np.linalg.norm(target_vec - ball_vec)
+    
+    def get_obs(self) -> np.ndarray[np.float64]:
         """Get current observation vector.
         
         Returns:
             List containing:
             - Drone y position
             - Wind x and z components
-            - Target relative x and z position
+            - Target relative x y z position
             - Grenade-target distance
             - Grenade-target angle (radians)
             - Grenade release status (1 if released)
         """
-        target_vec: pr.Vector3 = self.drone.relative_position(self.target.pos)
-        relative_distance: float = self.calculate_grenade_target_distance()
-        angle_rad: float = self.calculate_grenage_target_angle()
+        target_vec: np.ndarray[np.float64] = self.target.position - self.drone.position
+        relative_distance: float = self.calculate_ball_target_distance()
+        angle_rad: float = self.calculate_ball_target_angle()
 
-        return [
-            self.drone.pos.y, 
-            self.wind.x, self.wind.z,
-            target_vec.x, target_vec.z,
-            relative_distance,
-            angle_rad,
-            1.0 if self.grenade.is_released else 0.0
-        ]
-
-    def calculate_grenade_target_distance(self) -> float:
-        """Calculate horizontal distance between grenade and target.
-        
-        Returns:
-            Distance in meters
-        """
-        grenade_vec: pr.Vector3 = self.drone.relative_position(self.grenade.pos)
-        target_vec: pr.Vector3 = self.drone.relative_position(self.target.pos)
-        return pr.vector3_length(pr.vector3_subtract(target_vec, grenade_vec))
-    
-    def calculate_grenage_target_angle(self) -> float:
-        """Calculate angle between grenade drop vector and target vector.
-        
-        Returns:
-            Angle in radians
-        """
-        grenade_vec: pr.Vector3 = self.drone.relative_position(pr.Vector3(
-            self.drone.pos.x,
-            self.drone.pos.y - 2,
-            self.drone.pos.z,
-        ))
-        target_vec: pr.Vector3 = self.drone.relative_position(self.target.pos)
-
-        dot_product: float = pr.vector3_dot_product(grenade_vec, target_vec)
-        norm_grenade: float = pr.vector3_length(grenade_vec)
-        norm_target: float = pr.vector3_length(target_vec)
-        
-        if norm_grenade == 0 or norm_target == 0:
-            return 0.0
-            
-        cos_theta: float = np.clip(dot_product / (norm_grenade * norm_target), -1.0, 1.0)
-        return math.acos(cos_theta)
-
-    def calculate_reward(self) -> float:
-        """Calculate reward for current state.
-        
-        Returns:
-            Reward value (higher is better)
-        """
-        SUCCESS_RADIUS: float = 5.0
-        current_distance: float = pr.vector3_distance(self.target.pos, self.grenade.pos)
-        wind_magnitude: float = np.sqrt(self.wind.x**2 + self.wind.z**2)
-        
-        if self.check_done():
-            if current_distance <= SUCCESS_RADIUS:
-                self.success = True
-                return (20 + wind_magnitude + 
-                       (1 - current_distance/SUCCESS_RADIUS) + 
-                       (1 - self.drone.pos.y/self.scene_size.y))
-            return -(current_distance/self.scene_size.x)
-
-        return -0.01  # Small penalty for each timestep
-
-    def check_done(self) -> bool:
-        """Check if episode should terminate.
-        
-        Returns:
-            True if episode should end (grenade hit ground)
-        """
-        return self.grenade.pos.y <= 0.0
+        return np.array(
+            [
+                self.drone.position[1],      # Drone y position
+                self.wind[0],                # Wind x
+                self.wind[2],                # Wind z
+                target_vec[0],               # Target rel x
+                target_vec[1],               # Target rel y
+                target_vec[2],               # Target rel z
+                relative_distance,           # Distance to target
+                angle_rad,                   # Angle (radians)
+                float(self.ball.is_released) # Release status
+            ],
+            dtype=np.float64  # Explicitly enforce float64
+        )
     
     def print_episode_summary(self, collision_reward: float) -> None:
-        """Print summary statistics for completed episode.
-        
-        Args:
-            collision_reward: Additional reward component to display
-        """
         episode_time: str = f"{self.episode_time:.2f}"
         free_fall_time: str = f"{self.free_fall_time:.4f}"
         total_reward: str = f"{self.episode_reward:7.2f}"
@@ -237,7 +164,7 @@ class Environment:
         output: List[str] = [
             separator,
             f"TOTAL FALL TIME:  {free_fall_time}s",
-            f"TOTAL REAL TIME:  {episode_time}s",
+            f"TOTAL EPISODE TIME:  {episode_time}s",
             f"TOTAL REWARD:     {total_reward}",
             f"TOTAL STEPS:      {steps}s",
             f"COLLISION REWARD: {collision_reward}",
@@ -245,5 +172,9 @@ class Environment:
             f"AC: f={self.action_count['forward']} b={self.action_count['backward']} l={self.action_count['left']} r={self.action_count['right']} r={self.action_count['release']}",
             separator
         ]
-
         print("\n".join(output))
+
+        
+        
+
+        
