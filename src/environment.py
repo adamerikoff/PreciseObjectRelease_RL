@@ -11,7 +11,7 @@ class Environment:
         self.scene_size: np.ndarray[np.float64] = scene_size
         self.half_scene_size: np.ndarray[np.float64] = scene_size / 2
 
-        self.state_size: int = 9
+        self.state_size: int = 8
         self.action_size: int = 5
 
     def reset(self, height: Optional[float] = None) -> np.ndarray[np.float64]:
@@ -23,9 +23,9 @@ class Environment:
         ])
 
         target_pos = np.array([
-            np.random.uniform(-self.half_scene_size[0], self.half_scene_size[0]),
+            np.random.uniform(-self.half_scene_size[0] + 100, self.half_scene_size[0] - 100),
             0.0,                             
-            np.random.uniform(-self.half_scene_size[2], self.half_scene_size[2])
+            np.random.uniform(-self.half_scene_size[2] + 100, self.half_scene_size[2] - 100)
         ], dtype=np.float64)
         drone_pos = np.array([
             target_pos[0] + np.random.uniform(-10.0, 10.0),
@@ -97,11 +97,12 @@ class Environment:
         current_distance: float = np.linalg.norm(self.target.position - self.ball.position)
         if self.check_done():
             if current_distance <= self.target.radius:
+                if current_distance <= 1.0: return 100
                 self.success = True
                 distance_ratio = 1 - current_distance/self.target.radius
                 height_ratio = 1 - self.drone.position[1]/self.scene_size[1]
                 return (1 + wind_magnitude + distance_ratio + height_ratio)
-            return -(current_distance/self.scene_size[0])
+            return -(1 + current_distance/self.scene_size[0])
         return -0.01
     
     def calculate_ball_target_angle(self) -> float:
@@ -124,31 +125,19 @@ class Environment:
         return np.linalg.norm(target_vec - ball_vec)
     
     def get_obs(self) -> np.ndarray[np.float64]:
-        """Get current observation vector.
-        
-        Returns:
-            List containing:
-            - Drone y position
-            - Wind x and z components
-            - Target relative x y z position
-            - Grenade-target distance
-            - Grenade-target angle (radians)
-            - Grenade release status (1 if released)
-        """
         target_vec: np.ndarray[np.float64] = self.target.position - self.drone.position
         relative_distance: float = self.calculate_ball_target_distance()
         angle_rad: float = self.calculate_ball_target_angle()
 
         return np.array(
             [
-                self.drone.position[1],      # Drone y position
+                self.drone.position[1],
                 self.wind[0],                # Wind x
                 self.wind[2],                # Wind z
                 target_vec[0],               # Target rel x
-                target_vec[1],               # Target rel y
                 target_vec[2],               # Target rel z
                 relative_distance,           # Distance to target
-                angle_rad,                   # Angle (radians)
+                angle_rad,
                 float(self.ball.is_released) # Release status
             ],
             dtype=np.float64  # Explicitly enforce float64

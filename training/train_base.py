@@ -1,10 +1,12 @@
 from collections import deque
+from typing import Tuple
 import time
 
 import torch
 import torch.nn as nn
+import numpy as np
 
-from CONFIG import GAMMA, LR, BUFFER_SIZE, BATCH_SIZE, UPDATE_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, EPSILON_START, EPSILON_END, EPSILON_DECAY, N_EPISODES, PHYSICS_DT, TAU
+from CONFIG import GAMMA, LR, BUFFER_SIZE, BATCH_SIZE, UPDATE_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, EPSILON_START, EPSILON_END, EPSILON_DECAY, N_EPISODES, PHYSICS_DT, TAU, RENDERING_SLEEP
 from src.environment import Environment
 from src.renderer import Renderer
 from agent.dqn import DQNAgent, QNetwork, ReplayBuffer
@@ -27,7 +29,7 @@ def train(
     agent = DQNAgent(env.state_size, env.action_size, GAMMA, LR, BUFFER_SIZE, BATCH_SIZE, UPDATE_INTERVAL, TAU, device)
 
     if render: 
-        renderer: Renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, title, env, top)
+        renderer: Renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, title, env, top, True, RENDERING_SLEEP)
         renderer.window_init()
 
     # Training tracking
@@ -52,10 +54,12 @@ def train(
         "epsilon", "time_elapsed", "real_time_elapsed"
     ])
 
+    epsilons = []
+
     # Main training loop
     for episode in range(1, N_EPISODES + 1):
+
         real_time_elapsed = 0.0
-        episode_reward = 0.0
         
         state = env.reset()
         done = False
@@ -65,20 +69,18 @@ def train(
             while not done:
                 action = agent.act(state, epsilon)
                 if action == 4:
+                    reward_accumulator = 0.0
                     release_state = state
-                    while not done:
+                    while not env.check_done():
                         next_state, reward, done = env.step(action, PHYSICS_DT)
-                        real_time_elapsed += PHYSICS_DT
-                        episode_reward += reward
+                        reward_accumulator += reward
                         if render: renderer.render()
+                    reward = reward_accumulator
                     state = release_state
-                    reward = episode_reward
                 else:
                     next_state, reward, done = env.step(action, PHYSICS_DT)
-                    
                 agent.step(state, action, reward, next_state, done)
                 state = next_state
-                real_time_elapsed += PHYSICS_DT
                 if render: renderer.render()
         else:
             while not done:
@@ -86,9 +88,9 @@ def train(
                 next_state, reward, done = env.step(action, PHYSICS_DT)
                 agent.step(state, action, reward, next_state, done)
                 state = next_state
-                real_time_elapsed += PHYSICS_DT
                 if render: renderer.render()
 
+        real_time_elapsed = env.episode_time
         episode_reward = env.episode_reward
         episode_steps = env.episode_steps
         success = env.success
@@ -168,3 +170,4 @@ def train(
 
     if render: 
         renderer.close_window()
+    

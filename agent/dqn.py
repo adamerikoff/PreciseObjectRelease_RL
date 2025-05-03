@@ -29,15 +29,15 @@ class QNetwork(nn.Module):
     def __init__(self, state_size, action_size):
         super().__init__()
         self.model = nn.Sequential(
-            nn.Linear(state_size, 128),
+            nn.Linear(state_size, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(32, 16),
-            nn.ReLU(),
-            nn.Linear(16, action_size)
+            nn.Linear(32, action_size),
         )
     
     def forward(self, state):
@@ -92,9 +92,10 @@ class DQNAgent:
         self.memory.add(state, action, reward, next_state, done)
         self.time_step += 1
 
-        if self.time_step % self.update_interval == 0 and len(self.memory) > self.batch_size:
+        if len(self.memory) > self.batch_size:
             self.learn()
-            self.update_target_network()
+            if self.time_step % self.update_interval == 0:
+                self.update_target_network()
 
     def learn(self):
         experiences = self.memory.sample(self.batch_size)

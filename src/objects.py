@@ -17,7 +17,7 @@ class Drone:
             self,
             position: np.ndarray[np.float64] = np.array([0.0, 0.0, 0.0], dtype=np.float64),
             size: np.ndarray[np.float64] = np.array([10.0, 5.0, 10.0], dtype=np.float64),
-            speed: float = 10.0
+            speed: float = 5.0
         ) -> None:
         self.position: np.ndarray[np.float64] = position.astype(np.float64)
         self.size: np.ndarray[np.float64] = size.astype(np.float64)
@@ -27,13 +27,13 @@ class Drone:
         movement: np.ndarray[np.float64] = np.zeros(3, dtype=np.float64)
         
         if action == 0:
-            movement[0] = self.speed * dt
+            movement[0] = self.speed
         elif action == 1:
-            movement[0] = -self.speed * dt
+            movement[0] = -self.speed
         elif action == 2:
-            movement[2] = -self.speed * dt
+            movement[2] = -self.speed
         elif action == 3:
-            movement[2] = self.speed * dt
+            movement[2] = self.speed
             
         self.position += movement
 
