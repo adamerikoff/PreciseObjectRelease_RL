@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from CONFIG import GAMMA, LR, BUFFER_SIZE, BATCH_SIZE, UPDATE_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, EPSILON_MAX, EPSILON_MIN, EPSILON_DECAY, N_EPISODES, PHYSICS_DT, TAU, RENDERING_SLEEP, HEIGHTS, EPSILON_MID
+from CONFIG import GAMMA, LR, BUFFER_SIZE, BATCH_SIZE, UPDATE_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, EPSILON_MAX, EPSILON_MIN, EPSILON_DECAY, N_EPISODES, PHYSICS_DT, TAU, RENDERING_SLEEP, HEIGHTS
 from src.environment import Environment
 from src.renderer import Renderer
 from agent.dqn import DQNAgent, QNetwork, ReplayBuffer
@@ -37,7 +37,8 @@ def train(
     training_stats = pd.DataFrame(columns=[
         "episode", "height", "reward", "steps", 
         "success", "epsilon", "actions_forward",
-        "actions_backward", "actions_left", "actions_right"
+        "actions_backward", "actions_left", "actions_right", 
+        "wind_vector", "terminal_distance"
     ])
     
     last_100 = {
@@ -50,14 +51,11 @@ def train(
     total_training_time = 0.0
     total_episodes = 0
 
-    epsilon = EPSILON_MAX
-
     for base_height in HEIGHTS:
-        if base_height > 159:
-            epsilon = EPSILON_MID
+        epsilon = EPSILON_MAX
         for episode in range(1, N_EPISODES + 1):
             total_episodes += 1
-            height = random.uniform(50, base_height)
+            height = random.uniform(base_height - 50.0, base_height + 50.0)
 
             # Run episode
             state = env.reset(height=height)
@@ -113,7 +111,9 @@ def train(
                 "actions_forward": env.action_count["forward"],
                 "actions_backward": env.action_count["backward"],
                 "actions_left": env.action_count["left"],
-                "actions_right": env.action_count["right"]
+                "actions_right": env.action_count["right"],
+                "wind_vector": env.wind.tolist(),
+                "terminal_distance": env.terminal_distance
             }
 
             # Print every episode (flushing)

@@ -11,9 +11,9 @@ from CONFIG import PHYSICS_DT, SCREEN_HEIGHT, SCREEN_WIDTH, SCENE_Y, SCENE_X, SC
 def test_model_across_heights(model_path, num_sets=5, episodes_per_set=50):
     # Initialize environment and agent
     env = Environment(np.array([SCENE_X, SCENE_Y, SCENE_Z]))
-    renderer: Renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, model_path, env, False, True, RENDERING_SLEEP)
+    renderer: Renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, model_path, env, False, True, RENDERING_SLEEP, False)
 
-    renderer.window_init()
+    # renderer.window_init()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     agent = DQNAgent(env.state_size, env.action_size, device=device)
@@ -22,14 +22,14 @@ def test_model_across_heights(model_path, num_sets=5, episodes_per_set=50):
     agent.load(model_path)
     print(f"Loaded model from {model_path}")
 
-    # Test heights from 50 to 400 in 10m increments
-    test_heights = [50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400]
+    test_heights = [50, 100, 150, 200, 250, 300, 350, 400]
     
     # Results dataframe
     results = pd.DataFrame(columns=[
         'set_num', 'height', 'episode', 'reward', 
         'steps', 'success', 'actions_forward',
-        'actions_backward', 'actions_left', 'actions_right'
+        'actions_backward', 'actions_left', 'actions_right',
+        'wind_vector', 'terminal_distance'
     ])
 
     # Fixed epsilon for evaluation (small exploration)
@@ -48,7 +48,7 @@ def test_model_across_heights(model_path, num_sets=5, episodes_per_set=50):
                     next_state, reward, done = env.step(action, PHYSICS_DT)
                     state = next_state
                     episode_reward += reward
-                    renderer.render()
+                    # renderer.render()
                 
                 # Record results
                 results.loc[len(results)] = {
@@ -61,14 +61,16 @@ def test_model_across_heights(model_path, num_sets=5, episodes_per_set=50):
                     'actions_forward': env.action_count["forward"],
                     'actions_backward': env.action_count["backward"],
                     'actions_left': env.action_count["left"],
-                    'actions_right': env.action_count["right"]
+                    'actions_right': env.action_count["right"],
+                    'wind_vector': env.wind.tolist(),
+                    'terminal_distance': env.terminal_distance
                 }
                 
             # Print progress
             print(f"Set {set_num}/{num_sets} | Height {height}m | "
                   f"Success Rate: {results[results['height'] == height]['success'].mean()*100:.1f}%")
 
-    renderer.close_window()
+    # renderer.close_window()
 
     return results
 

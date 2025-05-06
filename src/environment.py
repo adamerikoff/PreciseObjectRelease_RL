@@ -56,6 +56,8 @@ class Environment:
             "release": 0,
         }
 
+        self.terminal_distance = 0.0
+
         return self.get_obs()
 
     def step(self, action: Optional[int], dt: float) -> Tuple[np.ndarray[np.float64], float, float]:
@@ -96,14 +98,15 @@ class Environment:
         wind_magnitude = np.linalg.norm(self.wind)
         wind_ratio = wind_magnitude/21.0
         current_distance: float = np.linalg.norm(self.target.position - self.ball.position)
-        distance_ratio = 1 - current_distance/self.target.radius
-        height_ratio = 1 - self.drone.position[1]/self.scene_size[1]
+        distance_ratio = current_distance/self.scene_size[0]
+        height_ratio = self.drone.position[1]/self.scene_size[1]
 
         if self.check_done():
+            self.terminal_distance = current_distance
             if current_distance <= self.target.radius:
                 self.success = True
-                return (1 + wind_magnitude + distance_ratio + height_ratio)
-            return -(1 + current_distance/self.scene_size[0] + wind_ratio + height_ratio)
+                return (5 - current_distance + wind_magnitude +  + height_ratio)
+            return -(1 + distance_ratio + wind_ratio + height_ratio)
         return -0.01
     
     def calculate_ball_target_angle(self) -> float:

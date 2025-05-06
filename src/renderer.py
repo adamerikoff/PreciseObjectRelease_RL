@@ -14,7 +14,8 @@ class Renderer:
         env: Environment, 
         top: bool = False, 
         debug: bool = True,
-        rendering_sleep: float = 0.5
+        rendering_sleep: float = 0.5,
+        sleep: bool = True
         ) -> None:
         self.screen_width: int = screen_width
         self.screen_height: int = screen_height
@@ -23,6 +24,7 @@ class Renderer:
         self.debug: bool = debug
         self.top = top
         self.rendering_sleep: float = rendering_sleep
+        self.sleep: bool = sleep
 
     def window_init(self) -> None:
         pr.init_window(self.screen_width, self.screen_height, self.title)
@@ -43,7 +45,8 @@ class Renderer:
             self.draw_debug_info()
             
         pr.end_drawing()
-        time.sleep(self.rendering_sleep)
+        if self.sleep:
+            time.sleep(self.rendering_sleep)
 
     def _render_3d_scene(self) -> None:
         grid_spacing: int = int(self.env.scene_size[0] / 10)
