@@ -17,9 +17,9 @@ class Environment:
     def reset(self, height: Optional[float] = None) -> np.ndarray[np.float64]:
         self.gravity: np.ndarray[np.float64] = np.array([0.0, -9.81, 0.0], dtype=np.float64)
         self.wind: np.ndarray[np.float64] = np.array([
-            np.random.uniform(-10.0, 10.0),  # x: random between -20 and 20
+            np.random.uniform(-15.0, 15.0),  # x: random between -20 and 20
             0.0,                              # y: fixed at 0
-            np.random.uniform(-10.0, 10.0)   # z: random between -20 and 20
+            np.random.uniform(-15.0, 15.0)   # z: random between -20 and 20
         ])
 
         target_pos = np.array([
@@ -28,9 +28,9 @@ class Environment:
             np.random.uniform(-self.half_scene_size[2] + 100, self.half_scene_size[2] - 100)
         ], dtype=np.float64)
         drone_pos = np.array([
-            target_pos[0] + np.random.uniform(-10.0, 10.0),
+            target_pos[0] + np.random.uniform(-15.0, 15.0),
             height if height is not None else np.random.uniform(50.0, self.scene_size[1]),                             
-            target_pos[2] + np.random.uniform(-10.0, 10.0)  # Fixed index from [3] to [2]
+            target_pos[2] + np.random.uniform(-15.0, 15.0)  # Fixed index from [3] to [2]
         ], dtype=np.float64)
         ball_pos = np.array([
             drone_pos[0],
@@ -93,16 +93,17 @@ class Environment:
         return self.ball.position[1] <= 0.0
     
     def calculate_reward(self) -> float:
-        wind_magnitude: float = np.linalg.norm(self.wind)
+        wind_magnitude = np.linalg.norm(self.wind)
+        wind_ratio = wind_magnitude/21.0
         current_distance: float = np.linalg.norm(self.target.position - self.ball.position)
+        distance_ratio = 1 - current_distance/self.target.radius
+        height_ratio = 1 - self.drone.position[1]/self.scene_size[1]
+
         if self.check_done():
             if current_distance <= self.target.radius:
-                if current_distance <= 1.0: return 100
                 self.success = True
-                distance_ratio = 1 - current_distance/self.target.radius
-                height_ratio = 1 - self.drone.position[1]/self.scene_size[1]
                 return (1 + wind_magnitude + distance_ratio + height_ratio)
-            return -(1 + current_distance/self.scene_size[0])
+            return -(1 + current_distance/self.scene_size[0] + wind_ratio + height_ratio)
         return -0.01
     
     def calculate_ball_target_angle(self) -> float:
