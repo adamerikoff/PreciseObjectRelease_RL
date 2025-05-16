@@ -17,7 +17,7 @@ class Drone:
             self,
             position: np.ndarray[np.float64] = np.array([0.0, 0.0, 0.0], dtype=np.float64),
             size: np.ndarray[np.float64] = np.array([10.0, 5.0, 10.0], dtype=np.float64),
-            speed: float = 4.0
+            speed: float = 1.0
         ) -> None:
         self.position: np.ndarray[np.float64] = position.astype(np.float64)
         self.size: np.ndarray[np.float64] = size.astype(np.float64)

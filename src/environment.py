@@ -28,9 +28,9 @@ class Environment:
             np.random.uniform(-self.half_scene_size[2] + 100, self.half_scene_size[2] - 100)
         ], dtype=np.float64)
         drone_pos = np.array([
-            target_pos[0] + np.random.uniform(-15.0, 15.0),
+            target_pos[0] + np.random.uniform(-20.0, 20.0),
             height if height is not None else np.random.uniform(50.0, self.scene_size[1]),                             
-            target_pos[2] + np.random.uniform(-15.0, 15.0)  # Fixed index from [3] to [2]
+            target_pos[2] + np.random.uniform(-20.0, 20.0)  # Fixed index from [3] to [2]
         ], dtype=np.float64)
         ball_pos = np.array([
             drone_pos[0],

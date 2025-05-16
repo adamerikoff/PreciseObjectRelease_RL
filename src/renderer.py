@@ -32,12 +32,12 @@ class Renderer:
     def close_window(self) -> None:
         pr.close_window()
 
-    def render(self) -> None:
+    def render(self, predicted_pos = None) -> None:
         pr.begin_drawing()
         pr.clear_background(pr.WHITE)
         
         pr.begin_mode_3d(self.setup_camera_top_view() if self.top else self.setup_camera_side_view())
-        self._render_3d_scene()
+        self._render_3d_scene(predicted_pos)
         pr.end_mode_3d()
         
         # Debug information overlay
@@ -48,7 +48,7 @@ class Renderer:
         if self.sleep:
             time.sleep(self.rendering_sleep)
 
-    def _render_3d_scene(self) -> None:
+    def _render_3d_scene(self, predicted_pos = None) -> None:
         grid_spacing: int = int(self.env.scene_size[0] / 10)
         pr.draw_grid(grid_spacing, 10)
         
@@ -71,6 +71,16 @@ class Renderer:
             1.0,  
             16,
             (0, 255, 0, 128)
+        )
+
+        if predicted_pos is not None:
+            pr.draw_cylinder(
+            [predicted_pos[0], 0, predicted_pos[1]],
+            self.env.target.radius,
+            self.env.target.radius,
+            1.0,  
+            16,
+            (0, 255, 0, 28)
         )
 
     def setup_camera_side_view(self) -> pr.Camera3D:
